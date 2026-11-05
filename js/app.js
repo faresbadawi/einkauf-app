@@ -1,5 +1,6 @@
 import { createStore, cloudEnabled } from './store.js';
 import { demoRecipes, demoItems } from './demo.js';
+import { proxyUrl } from './config.js';
 
 const $ = s => document.querySelector(s);
 const uid = () => Array.from(crypto.getRandomValues(new Uint8Array(8)), b => b.toString(16).padStart(2, '0')).join('');
@@ -47,11 +48,12 @@ const catOf = n => (CATS.find(([, re]) => re.test(n)) || [OTHER])[0];
 const RCATS = [['Alle', '🍽️'], ['Hauptgerichte', '🥘'], ['Salate', '🥗'], ['Suppen', '🍲'], ['Frühstück', '🍳'], ['Desserts', '🍰']];
 
 /* "500 g Nudeln" -> {num, unit, name} */
-const QRE = /^(\d+(?:[.,]\d+)?|[½¼¾])\s*(kg|g|ml|l|EL|TL|Stk\.?|Stück|Bund|Dosen?|Pck\.?|Zehen?|Prise)?\s+(.+)$/i;
+const QRE = /^(\d+\/\d+|\d+(?:[.,]\d+)?|[½¼¾])\s*(kg|g|ml|l|EL|TL|Stk\.?|Stück|Bund|Dosen?|Pck\.?|Zehen?|Prise|ملعقة كبيرة|ملعقة صغيرة|كوب|كيلو|حبة كبيرة|حبة|قطعة|فص|عود|قرن)?\s+(.+)$/i;
 function parseLine(s) {
   s = s.trim(); const m = s.match(QRE);
   if (!m) return { num: null, unit: '', name: s };
-  const num = { '½': .5, '¼': .25, '¾': .75 }[m[1]] ?? parseFloat(m[1].replace(',', '.'));
+  const fr = m[1].split('/');
+  const num = { '½': .5, '¼': .25, '¾': .75 }[m[1]] ?? (fr.length === 2 ? fr[0] / fr[1] : parseFloat(m[1].replace(',', '.')));
   return { num, unit: m[2] || '', name: m[3] };
 }
 const fmtNum = n => String(Math.round(n * 100) / 100).replace('.', ',');
@@ -102,7 +104,7 @@ function addIngredients(lines) {
   let n = 0; for (const l of lines) { const p = parseLine(l); if (addItem(p.name, fmtQty(p.num, p.unit))) n++; }
   return n;
 }
-const itemRow = i => `<div class="it ${i.done ? 'done' : ''}" data-id="${i.id}"><span class="box">${ico('check')}</span><span class="nm">${esc(i.name)}</span><span class="qty">${esc(i.qty)}</span><button class="x" data-del="${i.id}" aria-label="Löschen">${ico('close')}</button></div>`;
+const itemRow = i => `<div class="it ${i.done ? 'done' : ''}" data-id="${i.id}"><span class="box">${ico('check')}</span><span class="nm" dir="auto">${esc(i.name)}</span><span class="qty">${esc(i.qty)}</span><button class="x" data-del="${i.id}" aria-label="Löschen">${ico('close')}</button></div>`;
 
 /* ---------- Views ---------- */
 function vHome() {
@@ -118,7 +120,7 @@ function vHome() {
   </div>
   <h2 class="sec">Dein Wochenplan<small>${weekLabel(0)}</small></h2>
   <div class="panel"><div class="mini">${p.slots.map((id, i) => { const r = recipe(id);
-    return r ? `<button class="mcard" data-open="${r.id}"><div ${pic(r)} style="height:68px">${picIn(r)}</div><span><b>${esc(r.title.split(' ')[0])}</b>${SLOTS[i]}</span></button>`
+    return r ? `<button class="mcard" data-open="${r.id}"><div ${pic(r)} style="height:68px">${picIn(r)}</div><span><b dir="auto">${esc(r.title.split(' ')[0])}</b>${SLOTS[i]}</span></button>`
       : `<button class="mcard empty" data-go="plan">${SLOTS[i]}<br>frei</button>`; }).join('')}</div>
   <button class="btn" style="margin-top:14px" id="newPlan">${ico('spark')} ${n ? 'Neuen Plan erstellen' : 'Plan erstellen'}</button></div>`;
 }
@@ -134,7 +136,7 @@ function vRecipes() {
   <h2 class="sec">${state.favOnly ? 'Deine Lieblingsrezepte' : 'Alle Rezepte'}<small>${list.length}</small></h2>
   <div class="grid">${list.map(r => `<div class="rcard" data-open="${r.id}"><div ${pic(r)} style="${r.image ? '' : ''}">${picIn(r)}</div>
     <button class="heart ${r.fav ? 'on' : ''}" data-fav="${r.id}" aria-label="Favorit">${ico('heart')}</button>
-    <div class="meta"><b>${esc(r.title)}</b><small><span>⏱ ${r.time || '–'} Min</span><span>👥 ${r.servings || '–'}</span></small></div></div>`).join('')
+    <div class="meta"><b dir="auto">${esc(r.title)}</b><small><span>⏱ ${r.time || '–'} Min</span><span>👥 ${r.servings || '–'}</span></small></div></div>`).join('')
     || `<div class="empty" style="grid-column:1/-1"><b>📖</b>${state.q ? 'Nichts gefunden.' : 'Noch keine Rezepte.'}</div>`}</div>
   <button class="fab" id="newRecipe" aria-label="Neues Rezept">${ico('plus')}</button>`;
 }
@@ -174,7 +176,7 @@ function vPlan() {
   return head + `<div class="banner">${ico('spark')}<div><b>Dein Wochenmenü</b><span>${n} ausgewählte Gerichte</span></div></div>
   ${p.slots.map((id, i) => { const r = recipe(id);
     return r ? `<div class="slot" data-pick="${i}"><div ${pic(r)} style="width:86px;height:76px;border-radius:14px;display:grid;place-items:center;font-size:2.2rem;flex:none">${picIn(r)}</div>
-      <div><span class="tag">${SLOTS[i]}</span><b>${esc(r.title)}</b><small>⏱ ${r.time || '–'} Min · 👥 ${r.servings || '–'}</small></div><span class="sw">${ico('edit')}</span></div>`
+      <div><span class="tag">${SLOTS[i]}</span><b dir="auto">${esc(r.title)}</b><small>⏱ ${r.time || '–'} Min · 👥 ${r.servings || '–'}</small></div><span class="sw">${ico('edit')}</span></div>`
       : `<button class="slot empty2" data-pick="${i}"><div><span class="tag">${SLOTS[i]}</span><b>Gericht auswählen</b></div></button>`; }).join('')}
   <button class="btn" id="suggest">${ico('shuffle')} Neu vorschlagen</button>`;
 }
@@ -216,10 +218,10 @@ function openRecipe(id, seg = 'z') {
   const r = recipe(id); if (!r) return;
   show(`<div class="dhero p${r.title.length % 6}" ${r.image ? `style="background-image:url('${esc(r.image)}')"` : ''}>${picIn(r)}
       <button class="circle l" data-x="close">${ico('back')}</button><button class="circle r" data-x="fav" style="${r.fav ? 'color:#ff7d7d' : ''}">${ico('heart')}</button></div>
-    <h2>${esc(r.title)}</h2>
+    <h2 dir="auto">${esc(r.title)}</h2>
     <div class="facts"><span>⏱ ${r.time || '–'} Min</span><span>👥 ${r.servings || '–'} Personen</span><span>${esc(r.category || '')}</span></div>
     <div class="seg" style="margin:4px 0"><button data-x="z" class="${seg === 'z' ? 'on' : ''}">Zutaten</button><button data-x="s" class="${seg === 's' ? 'on' : ''}">Zubereitung</button></div>
-    ${seg === 'z' ? (r.ingredients || []).map(l => { const p = parseLine(l); return `<div class="ing"><span>${esc(p.name)}</span><span>${esc(fmtQty(p.num, p.unit))}</span></div>`; }).join('') || '<p class="muted">Keine Zutaten.</p>'
+    ${seg === 'z' ? (r.ingredients || []).map(l => { const p = parseLine(l); return `<div class="ing"><span dir="auto">${esc(p.name)}</span><span>${esc(fmtQty(p.num, p.unit))}</span></div>`; }).join('') || '<p class="muted">Keine Zutaten.</p>'
       : `<div class="steps">${esc(r.steps) || '<span class="muted">Noch keine Zubereitung.</span>'}</div>`}
     ${r.url ? `<a class="link" href="${esc(r.url)}" target="_blank" rel="noopener">Originalrezept öffnen ↗</a>` : ''}
     <button class="btn" data-x="tolist">${ico('cart')} Zur Einkaufsliste hinzufügen</button>
@@ -239,10 +241,10 @@ function editRecipe(r = {}) {
   const opt = RCATS.slice(1).map(([c]) => `<option ${((r.category || 'Hauptgerichte') === c) ? 'selected' : ''}>${c}</option>`).join('');
   show(`<h2>${r.id ? 'Rezept bearbeiten' : 'Neues Rezept'}</h2>
     <div><label>Link importieren (optional)</label><div class="row" style="gap:8px"><input class="field" id="eUrl" type="url" placeholder="https://…" value="${esc(r.url)}" style="flex:3"><button class="btn sec2" id="eImport" style="flex:1;padding:10px">Laden</button></div></div>
-    <div class="row"><div style="flex:0 0 80px"><label>Emoji</label><input class="field" id="eEmoji" value="${esc(r.emoji || '🍽️')}" style="text-align:center"></div><div><label>Titel</label><input class="field" id="eTitle" value="${esc(r.title)}"></div></div>
+    <div class="row"><div style="flex:0 0 80px"><label>Emoji</label><input class="field" id="eEmoji" value="${esc(r.emoji || '🍽️')}" style="text-align:center"></div><div><label>Titel</label><input class="field" dir="auto" id="eTitle" value="${esc(r.title)}"></div></div>
     <div class="row"><div><label>Kategorie</label><select class="field" id="eCat">${opt}</select></div><div><label>Minuten</label><input class="field" id="eTime" type="number" inputmode="numeric" value="${r.time || ''}"></div><div><label>Personen</label><input class="field" id="eServ" type="number" inputmode="numeric" value="${r.servings || ''}"></div></div>
-    <div><label>Zutaten (eine pro Zeile, z. B. 500 g Nudeln)</label><textarea class="field" id="eIng">${esc((r.ingredients || []).join('\n'))}</textarea></div>
-    <div><label>Zubereitung</label><textarea class="field" id="eSteps">${esc(r.steps)}</textarea></div>
+    <div><label>Zutaten (eine pro Zeile, z. B. 500 g Nudeln)</label><textarea class="field" dir="auto" id="eIng">${esc((r.ingredients || []).join('\n'))}</textarea></div>
+    <div><label>Zubereitung</label><textarea class="field" dir="auto" id="eSteps">${esc(r.steps)}</textarea></div>
     <div><label>Bild-Link (optional)</label><input class="field" id="eImg" type="url" value="${esc(r.image)}"></div>
     <div class="row"><button class="btn sec2" data-x="cancel">Abbrechen</button><button class="btn" data-x="save">Speichern</button></div>`);
   sheet.onclick = async e => {
@@ -267,9 +269,21 @@ function editRecipe(r = {}) {
   };
 }
 
+async function getHtml(url) {
+  const enc = encodeURIComponent(url);
+  const ways = ['proxy?url=' + enc, proxyUrl && proxyUrl + enc, 'https://api.allorigins.win/raw?url=' + enc, 'https://corsproxy.io/?url=' + enc].filter(Boolean);
+  for (const w of ways) {
+    try {
+      const r = await fetch(w, { signal: AbortSignal.timeout(12000) });
+      const t = await r.text();
+      if (r.ok && t.includes('ld+json')) return t;
+    } catch {}
+  }
+  throw new Error('nicht erreichbar');
+}
+
 async function importRecipe(url) {
-  const res = await fetch('https://api.allorigins.win/raw?url=' + encodeURIComponent(url));
-  const doc = new DOMParser().parseFromString(await res.text(), 'text/html');
+  const doc = new DOMParser().parseFromString(await getHtml(url), 'text/html');
   const find = n => {
     if (Array.isArray(n)) return n.map(find).find(Boolean);
     if (n && typeof n === 'object') { if ([].concat(n['@type'] || []).includes('Recipe')) return n; return find(n['@graph'] || Object.values(n)); }
@@ -288,7 +302,7 @@ async function importRecipe(url) {
 
 function pickRecipe(slot) {
   show(`<h2>Gericht für ${SLOTS[slot]}</h2>
-    ${state.recipes.map(r => `<button class="pick" data-r="${r.id}"><div ${pic(r)} style="width:48px;height:48px;border-radius:12px;display:grid;place-items:center;font-size:1.6rem">${picIn(r)}</div><div><b>${esc(r.title)}</b><br><span class="muted">${esc(r.category || '')} · ${r.time || '–'} Min</span></div></button>`).join('') || '<p class="muted">Lege zuerst Rezepte an.</p>'}
+    ${state.recipes.map(r => `<button class="pick" data-r="${r.id}"><div ${pic(r)} style="width:48px;height:48px;border-radius:12px;display:grid;place-items:center;font-size:1.6rem">${picIn(r)}</div><div><b dir="auto">${esc(r.title)}</b><br><span class="muted">${esc(r.category || '')} · ${r.time || '–'} Min</span></div></button>`).join('') || '<p class="muted">Lege zuerst Rezepte an.</p>'}
     <button class="btn sec2 danger" data-r="">Slot leeren</button>`);
   sheet.onclick = e => { const b = e.target.closest('[data-r]'); if (!b) return;
     const slots = [...planOf(state.weekOffset).slots]; slots[slot] = b.dataset.r || null; savePlan(state.weekOffset, slots); close(); };
