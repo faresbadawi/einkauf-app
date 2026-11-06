@@ -47,14 +47,14 @@ export default {
     try {
       if (structured && !de) return json({ ...structured, source: 'structured' }, 200, cors);
       if (!env.GEMINI_API_KEY) {
-        if (structured) return json({ ...structured, source: 'structured' }, 200, cors);
+        if (structured) return json({ ...structured, source: 'structured', warning: 'GEMINI_API_KEY fehlt (Secret nicht gesetzt oder nicht deployed)' }, 200, cors);
         return json({ error: 'KI nicht eingerichtet (GEMINI_API_KEY fehlt)' }, 501, cors);
       }
       const input = structured ? JSON.stringify(structured) : pageText(html);
       const out = await gemini(env.GEMINI_API_KEY, input, de);
       return json({ ...out, image: out.image || image || '', url: target.href, source: structured ? 'structured+ai' : 'ai' }, 200, cors);
     } catch (e) {
-      if (structured) return json({ ...structured, source: 'structured' }, 200, cors);
+      if (structured) return json({ ...structured, source: 'structured', warning: 'KI-Fehler: ' + (e.message || e) }, 200, cors);
       return json({ error: 'KI-Fehler: ' + (e.message || e) }, 502, cors);
     }
   }
@@ -75,7 +75,7 @@ ${input.slice(0, MAX_TEXT)}`;
     method: 'POST', headers: { 'Content-Type': 'application/json', 'x-goog-api-key': key },
     body: JSON.stringify({ contents: [{ parts: [{ text: prompt }] }], generationConfig: { responseMimeType: 'application/json', responseSchema: SCHEMA, temperature: 0.1 } })
   });
-  if (!r.ok) throw new Error(`Gemini ${r.status}`);
+  if (!r.ok) throw new Error(`Gemini ${r.status}: ${(await r.text()).slice(0, 300)}`);
   const d = await r.json();
   const out = JSON.parse(d.candidates?.[0]?.content?.parts?.[0]?.text || '{}');
   if (!out.title) throw new Error('Kein Rezept gefunden');
