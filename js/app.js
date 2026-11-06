@@ -1,6 +1,6 @@
 import { createStore, cloudEnabled } from './store.js';
 import { demoRecipes, demoItems } from './demo.js';
-import { proxyUrl } from './config.js';
+import { proxyUrl, importUrl } from './config.js';
 
 const $ = s => document.querySelector(s);
 const uid = () => Array.from(crypto.getRandomValues(new Uint8Array(8)), b => b.toString(16).padStart(2, '0')).join('');
@@ -240,7 +240,8 @@ function openRecipe(id, seg = 'z') {
 function editRecipe(r = {}) {
   const opt = RCATS.slice(1).map(([c]) => `<option ${((r.category || 'Hauptgerichte') === c) ? 'selected' : ''}>${c}</option>`).join('');
   show(`<h2>${r.id ? 'Rezept bearbeiten' : 'Neues Rezept'}</h2>
-    <div><label>Link importieren (optional)</label><div class="row" style="gap:8px"><input class="field" id="eUrl" type="url" placeholder="https://…" value="${esc(r.url)}" style="flex:3"><button class="btn sec2" id="eImport" style="flex:1;padding:10px">Laden</button></div></div>
+    <div><label>Link importieren (optional)</label><div class="row" style="gap:8px"><input class="field" id="eUrl" type="url" placeholder="https://…" value="${esc(r.url)}" style="flex:3"><button class="btn sec2" id="eImport" style="flex:1;padding:10px">Laden</button></div>
+      <label style="display:flex;gap:8px;align-items:center;margin:10px 0 0;text-transform:none;letter-spacing:0;font-size:.9rem"><input type="checkbox" id="eDe" ${localStorage.getItem('unsertisch:de') ? 'checked' : ''} style="width:auto"> Ins Deutsche übersetzen${importUrl ? '' : ' (braucht KI-Einrichtung)'}</label></div>
     <div class="row"><div style="flex:0 0 80px"><label>Emoji</label><input class="field" id="eEmoji" value="${esc(r.emoji || '🍽️')}" style="text-align:center"></div><div><label>Titel</label><input class="field" dir="auto" id="eTitle" value="${esc(r.title)}"></div></div>
     <div class="row"><div><label>Kategorie</label><select class="field" id="eCat">${opt}</select></div><div><label>Minuten</label><input class="field" id="eTime" type="number" inputmode="numeric" value="${r.time || ''}"></div><div><label>Personen</label><input class="field" id="eServ" type="number" inputmode="numeric" value="${r.servings || ''}"></div></div>
     <div><label>Zutaten (eine pro Zeile, z. B. 500 g Nudeln)</label><textarea class="field" dir="auto" id="eIng">${esc((r.ingredients || []).join('\n'))}</textarea></div>
@@ -252,9 +253,11 @@ function editRecipe(r = {}) {
     if (x === 'cancel') return r.id ? openRecipe(r.id) : close();
     if (id === 'eImport') {
       const url = $('#eUrl').value.trim(); if (!url) return; e.target.textContent = '…';
-      try { const d = await importRecipe(url);
+      try { const d = await importRecipe(url, $('#eDe').checked);
         if (d.title) $('#eTitle').value = d.title; if (d.ingredients.length) $('#eIng').value = d.ingredients.join('\n');
         if (d.steps) $('#eSteps').value = d.steps; if (d.image) $('#eImg').value = d.image;
+        if (d.category) $('#eCat').value = d.category; if (d.emoji) $('#eEmoji').value = d.emoji;
+        localStorage.setItem('unsertisch:de', $('#eDe').checked ? '1' : '');
         if (d.time) $('#eTime').value = d.time; if (d.servings) $('#eServ').value = d.servings; toast('Rezept geladen – bitte kurz prüfen');
       } catch { toast('Konnte das Rezept nicht lesen – bitte von Hand eintragen'); }
       e.target.textContent = 'Laden'; return;
@@ -282,7 +285,15 @@ async function getHtml(url) {
   throw new Error('nicht erreichbar');
 }
 
-async function importRecipe(url) {
+async function importViaWorker(url, de) {
+  const r = await fetch(`${importUrl}${importUrl.includes('?') ? '&' : '?'}url=${encodeURIComponent(url)}&de=${de ? 1 : 0}`, { signal: AbortSignal.timeout(40000) });
+  const d = await r.json();
+  if (!r.ok || d.error) throw new Error(d.error || 'Fehler');
+  return d;
+}
+
+async function importRecipe(url, de) {
+  if (importUrl) { try { return await importViaWorker(url, de); } catch {} }
   const doc = new DOMParser().parseFromString(await getHtml(url), 'text/html');
   const find = n => {
     if (Array.isArray(n)) return n.map(find).find(Boolean);
