@@ -3,7 +3,7 @@
 // Steht der deutsche Name im Katalog, wird der Katalogartikel benutzt (Kategorie/Emoji dann egal).
 // "!" am Anfang = war in der alten Liste noch nicht abgehakt.
 const RAW = `
-!a|Fladenbrot|خبز عربي
+!a|Arabisches Brot|خبز عربي
 a|Irakisches Brot (Marshrouh)|خبز عراقي / مشروح|brot|🫓
 a|Gewürzgurken|مخلل خيار
 a|Minze|نعنع

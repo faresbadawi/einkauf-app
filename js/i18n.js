@@ -41,11 +41,22 @@ const S = {
     oldKnown: 'Nur merken', oldKnownSub: 'Im Katalog unter „Unsere Artikel“ – mit einem Tipp auf die Liste', oldDone: '{n} Artikel gemerkt – im Katalog unter „Unsere Artikel“',
     gestureTip: 'Tipp: Zur Seite wischen = löschen · lange drücken und ziehen = anderer Markt',
     deleted: '„{name}“ gelöscht', undo: 'Rückgängig', dropHere: 'Hier ablegen', movedTo: 'Verschoben: {name}',
-    fx: 'Ton & Vibration', fxSub: 'Beim Abhaken', saved: 'Gespeichert',
+    fx: 'Ton & Vibration', fxSub: 'Beim Tippen und Abhaken', saved: 'Gespeichert',
     aiInfo: 'Die KI liest Rezepte aus Links, übersetzt zwischen Deutsch und Arabisch und ordnet neue Artikel ein. Ein Schlüssel ist bereits auf dem Server hinterlegt.',
     aiServer: 'Server-Schlüssel', ownKey: 'Eigener Gemini-Schlüssel (optional)', ownKeySet: 'Eigener Schlüssel',
     ownKeyHint: 'Nur nötig, wenn die KI nicht antwortet. Kostenlos erhältlich unter', aiTest: 'Testen', aiTesting: 'KI wird getestet …', aiWorks: 'KI funktioniert',
-    manageStores: 'Märkte verwalten', nStores: '{n} Märkte', ai: 'KI-Assistent', aiOk: 'Bereit', aiOff: 'Nicht eingerichtet', aiCheck: 'Wird geprüft …', aiErr: 'Nicht erreichbar'
+    manageStores: 'Märkte verwalten', nStores: '{n} Märkte', ai: 'KI-Assistent', aiOk: 'Bereit', aiOff: 'Nicht eingerichtet', aiCheck: 'Wird geprüft …', aiErr: 'Nicht erreichbar',
+    // Neu: QR, Plan-Gänge, Sammelimport, Sortierung
+    codeLabel: 'Haushaltscode', qrHint: 'Andere scannen diesen Code einfach mit der Handy-Kamera – fertig.', scan: 'Scannen',
+    scanTitle: 'QR-Code scannen', scanSub: 'Halte die Kamera auf den Code des anderen Geräts', scanWait: 'Kamera wird gestartet …', scanHint: 'Suche nach einem QR-Code …',
+    scanNoCode: 'Das ist kein Haushalts-Code', camErr: 'Keine Kamera verfügbar. Erlaube den Zugriff – oder gib den Code unten ein.',
+    joinQ: 'Diesem Haushalt beitreten?', joinInfo: 'Danach siehst du dieselbe Liste, dieselben Rezepte und denselben Plan – live.', joined: 'Willkommen im Haushalt {code} 👋', alreadyIn: 'Du bist schon in diesem Haushalt',
+    mains: 'Hauptgerichte', extras: 'Dazu', extrasHint: 'Füge Salat, Dessert, Suppe oder Frühstück hinzu:', removeCourse: 'Entfernen', otherRecipes: 'Andere Rezepte',
+    noneOfCourse: 'Noch keine Rezepte in „{c}“ – wähle ein anderes oder lege eins an.',
+    c_main: 'Hauptgericht', c_salad: 'Salat', c_dessert: 'Dessert', c_soup: 'Suppe', c_breakfast: 'Frühstück',
+    bulk: 'Mehrere Links', bulkSub: 'Viele Rezepte auf einmal – Links einfach untereinander einfügen', bulkPh: 'https://…\nhttps://…\nhttps://…',
+    bulkGo: 'Alle einlesen', bulkNone: 'Keine Links gefunden', bulkRun: '{n} von {all} gelesen …', bulkDone: 'Fertig – {n} Rezepte gespeichert', bulkShow: 'Rezepte ansehen', bulkSkip: 'schon vorhanden',
+    sort: 'Sortieren', sort_az: 'A – Z', sort_new: 'Neueste', sort_fast: 'Schnellste'
   },
   ar: {
     app: 'سفرتنا', tabList: 'المشتريات', tabRecipes: 'الوصفات', tabPlan: 'الخطة', tabMore: 'المزيد',
@@ -81,11 +92,21 @@ const S = {
     oldKnown: 'حفظ فقط', oldKnownSub: 'في الأصناف تحت «أصنافنا» – بلمسة إلى القائمة', oldDone: 'تم حفظ {n} صنفاً – في الأصناف تحت «أصنافنا»',
     gestureTip: 'نصيحة: اسحب جانباً للحذف · اضغط مطولاً واسحب لنقله إلى متجر آخر',
     deleted: 'تم حذف «{name}»', undo: 'تراجع', dropHere: 'أفلته هنا', movedTo: 'نُقل إلى: {name}',
-    fx: 'الصوت والاهتزاز', fxSub: 'عند وضع علامة', saved: 'تم الحفظ',
+    fx: 'الصوت والاهتزاز', fxSub: 'عند اللمس ووضع علامة', saved: 'تم الحفظ',
     aiInfo: 'يقرأ الذكاء الاصطناعي الوصفات من الروابط، ويترجم بين العربية والألمانية، ويصنّف الأصناف الجديدة. يوجد مفتاح محفوظ على الخادم.',
     aiServer: 'مفتاح الخادم', ownKey: 'مفتاح Gemini خاص (اختياري)', ownKeySet: 'مفتاح خاص',
     ownKeyHint: 'مطلوب فقط إذا لم يستجب الذكاء الاصطناعي. مجاني من', aiTest: 'اختبار', aiTesting: 'جارٍ اختبار الذكاء الاصطناعي …', aiWorks: 'الذكاء الاصطناعي يعمل',
-    manageStores: 'إدارة المتاجر', nStores: '{n} متاجر', ai: 'المساعد الذكي', aiOk: 'جاهز', aiOff: 'غير مُعدّ', aiCheck: 'جارٍ الفحص …', aiErr: 'تعذّر الوصول'
+    manageStores: 'إدارة المتاجر', nStores: '{n} متاجر', ai: 'المساعد الذكي', aiOk: 'جاهز', aiOff: 'غير مُعدّ', aiCheck: 'جارٍ الفحص …', aiErr: 'تعذّر الوصول',
+    codeLabel: 'رمز المنزل', qrHint: 'يكفي أن يمسح الآخرون هذا الرمز بكاميرا الهاتف.', scan: 'مسح الرمز',
+    scanTitle: 'مسح رمز QR', scanSub: 'وجّه الكاميرا نحو الرمز على الجهاز الآخر', scanWait: 'جارٍ تشغيل الكاميرا …', scanHint: 'جارٍ البحث عن رمز QR …',
+    scanNoCode: 'هذا ليس رمز منزل', camErr: 'الكاميرا غير متاحة. اسمح بالوصول إليها – أو أدخل الرمز في الأسفل.',
+    joinQ: 'الانضمام إلى هذا المنزل؟', joinInfo: 'بعدها سترى نفس القائمة ونفس الوصفات ونفس الخطة – مباشرةً.', joined: 'أهلاً بك في المنزل {code} 👋', alreadyIn: 'أنت في هذا المنزل بالفعل',
+    mains: 'الأطباق الرئيسية', extras: 'إضافات', extrasHint: 'أضف سلطة أو حلوى أو شوربة أو فطوراً:', removeCourse: 'إزالة', otherRecipes: 'وصفات أخرى',
+    noneOfCourse: 'لا توجد وصفات في «{c}» بعد – اختر غيرها أو أضف وصفة.',
+    c_main: 'طبق رئيسي', c_salad: 'سلطة', c_dessert: 'حلوى', c_soup: 'شوربة', c_breakfast: 'فطور',
+    bulk: 'عدة روابط', bulkSub: 'وصفات كثيرة دفعة واحدة – الصق الروابط كل رابط في سطر', bulkPh: 'https://…\nhttps://…\nhttps://…',
+    bulkGo: 'قراءة الكل', bulkNone: 'لم يتم العثور على روابط', bulkRun: 'تمت قراءة {n} من {all} …', bulkDone: 'تم – حُفظت {n} وصفات', bulkShow: 'عرض الوصفات', bulkSkip: 'موجودة مسبقاً',
+    sort: 'ترتيب', sort_az: 'أ – ي', sort_new: 'الأحدث', sort_fast: 'الأسرع'
   }
 };
 

@@ -147,9 +147,13 @@ const RAW = {
 🍞|Toastbrot|خبز توست|toast
 🍞|Vollkornbrot|خبز أسمر
 🥖|Baguette|خبز فرنسي
-🥯|Brötchen|خبز صغير|semmeln,صمون
+🥯|Brötchen|خبز صغير|semmeln
 🥯|Burgerbrötchen|خبز برغر|burger buns
-🫓|Fladenbrot|خبز عربي|arabisches brot,pita
+🫓|Arabisches Brot|خبز عربي|khubz,pita,arabisch brot,syrisches brot,libanesisches brot,خبز شامي
+🫓|Fladenbrot|خبز تركي|pide,türkisches brot,خبز بيدا
+🫓|Saj-Brot (Markouk)|خبز صاج|markouk,saj,مرقوق,شراك
+🫓|Tannour-Brot|خبز تنور|tannur,tannour
+🥖|Samoon|صمون|samoon,irakisches brötchen
 🫓|Wraps|خبز تورتيلا|tortilla
 🥐|Croissants|كرواسون
 🥨|Brezeln|بريتزل

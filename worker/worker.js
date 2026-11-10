@@ -4,7 +4,7 @@
 // Geheimnis (nicht im Code!): GEMINI_API_KEY  – per `wrangler secret put GEMINI_API_KEY` oder im Cloudflare-Dashboard.
 // Reihenfolge der Modelle: ist eines überlastet, wird nach kurzer Wartezeit das nächste versucht
 const FAST = ['gemini-flash-lite-latest', 'gemini-2.5-flash-lite', 'gemini-2.0-flash', 'gemini-flash-latest'];
-const SMART = ['gemini-2.5-flash', 'gemini-flash-latest', 'gemini-flash-lite-latest', 'gemini-2.0-flash'];
+const SMART = ['gemini-2.5-flash', 'gemini-2.5-flash-lite', 'gemini-flash-lite-latest', 'gemini-2.0-flash'];
 const MAX_HTML = 2_500_000, MAX_TEXT = 25_000;
 const RCATS = ['main', 'salad', 'soup', 'breakfast', 'dessert'];
 const ICATS = ['obst', 'gemuese', 'kraeuter', 'milch', 'fleisch', 'brot', 'vorrat', 'konserven', 'gewuerze', 'backen', 'fruehstueck', 'snacks', 'getraenke', 'tk', 'orient', 'drogerie', 'haushalt', 'baby', 'sonst'];
@@ -113,30 +113,42 @@ async function importUrl(q, key, cors) {
   }
 }
 
-/* ---------- Gemini: mehrere Modelle und Wiederholung, falls eines überlastet ist ---------- */
-async function gemini(key, prompt, schema, models) {
-  let last = 'unbekannt';
-  for (let round = 0; round < 2; round++) {
-    for (const model of models) {
-      try {
-        const r = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent`, {
-          method: 'POST', headers: { 'Content-Type': 'application/json', 'x-goog-api-key': key }, signal: AbortSignal.timeout(round ? 25000 : 12000),
-          body: JSON.stringify({ contents: [{ parts: [{ text: prompt }] }], generationConfig: { responseMimeType: 'application/json', responseSchema: schema, temperature: 0.1, ...(/2\.5/.test(model) ? { thinkingConfig: { thinkingBudget: 0 } } : {}) } })
-        });
-        if (r.ok) {
-          const d = await r.json();
-          const text = d.candidates?.[0]?.content?.parts?.map(p => p.text || '').join('') || '';
-          if (text) return JSON.parse(text);
-          last = `${model}: leere Antwort`;
-        } else {
-          last = `${model} ${r.status}: ${(await r.text()).slice(0, 160)}`;
-          if ([400, 401, 403].includes(r.status) && /API key|API_KEY|permission|PERMISSION/.test(last)) throw Object.assign(new Error(last), { fatal: true });
-        }
-      } catch (e) { if (e.fatal) throw e; last = `${model}: ${e.message || e}`; }
-    }
-    await new Promise(res => setTimeout(res, 900));
-  }
-  throw new Error(last);
+/* ---------- Gemini: gestaffelte Anfragen ----------
+   Ein Modell wird gefragt; antwortet es nicht innerhalb von HEDGE ms (oder schlägt fehl), startet parallel das nächste.
+   Die erste brauchbare Antwort gewinnt, die anderen werden abgebrochen. So bremst ein überlastetes Modell nicht mehr alles aus. */
+const TOTAL = 40000;
+function gemini(key, prompt, schema, models, HEDGE = 2500) {
+  const t0 = Date.now(), ctrls = [], errs = [];
+  let next = 0, running = 0, done = false, timer = 0;
+  return new Promise((resolve, reject) => {
+    const finish = (fn, v) => { if (done) return; done = true; clearTimeout(timer); ctrls.forEach(c => c.abort()); fn(v); };
+    const launch = () => {
+      if (done) return;
+      if (next >= models.length) { if (!running) finish(reject, new Error(errs.at(-1) || 'keine Antwort')); return; }
+      const model = models[next++], ctrl = new AbortController(); ctrls.push(ctrl); running++;
+      clearTimeout(timer); timer = setTimeout(launch, HEDGE);
+      call(model, ctrl.signal).then(out => finish(resolve, { out, model, ms: Date.now() - t0 }), e => {
+        running--; errs.push(`${model}: ${e.message || e}`);
+        if (e.fatal) return finish(reject, e);
+        launch();
+      });
+    };
+    const call = async (model, signal) => {
+      const r = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent`, {
+        method: 'POST', headers: { 'Content-Type': 'application/json', 'x-goog-api-key': key }, signal: AbortSignal.any([signal, AbortSignal.timeout(TOTAL)]),
+        body: JSON.stringify({ contents: [{ parts: [{ text: prompt }] }], generationConfig: { responseMimeType: 'application/json', responseSchema: schema, temperature: 0.1, ...(/2\.5/.test(model) ? { thinkingConfig: { thinkingBudget: 0 } } : {}) } })
+      });
+      if (!r.ok) {
+        const msg = `${r.status}: ${(await r.text()).slice(0, 160)}`;
+        throw Object.assign(new Error(msg), { fatal: [400, 401, 403].includes(r.status) && /API key|API_KEY|permission|PERMISSION/.test(msg) });
+      }
+      const d = await r.json();
+      const text = d.candidates?.[0]?.content?.parts?.map(p => p.text || '').join('') || '';
+      if (!text) throw new Error('leere Antwort');
+      return JSON.parse(text);
+    };
+    launch();
+  });
 }
 
 const LANG_RULE = {
@@ -156,7 +168,8 @@ async function recipeAI(key, input, lg) {
 
 SOURCE:
 ${input.slice(0, MAX_TEXT)}`;
-  const out = await gemini(key, prompt, RECIPE_SCHEMA, SMART);
+  const { out, model, ms } = await gemini(key, prompt, RECIPE_SCHEMA, SMART, 7000);
+  out._ai = `${model} ${ms}ms`;
   if (!out.title) throw new Error('Kein Rezept gefunden');
   return out;
 }
@@ -170,7 +183,7 @@ async function itemsAI(key, names) {
 - emoji: one fitting emoji
 Entries:
 ${names.map(n => '- ' + n).join('\n')}`;
-  const out = await gemini(key, prompt, ITEMS_SCHEMA, FAST);
+  const { out } = await gemini(key, prompt, ITEMS_SCHEMA, FAST);
   return Array.isArray(out) ? out : [];
 }
 
