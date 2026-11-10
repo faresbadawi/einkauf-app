@@ -198,6 +198,7 @@ async function importYouTube(id, key, lg, cors) {
     try {
       const text = `YouTube video: ${info.title}\n\nVIDEO DESCRIPTION:\n${info.desc.slice(0, 8000)}\n\nTRANSCRIPT (auto-generated, may contain recognition errors; amounts may only be spoken):\n${info.transcript.slice(0, 16000)}`;
       const out = await recipeAI(key, text, lg, 'The source is a cooking video. Prefer an ingredient list from the description; otherwise collect ingredients and amounts from the transcript. Write clean steps from what is done in the video. Ignore sponsoring, links and greetings.');
+      if ((out.ingredients || []).length < 3) throw new Error('zu wenige Zutaten in Beschreibung/Transkript');
       return json({ ...out, ...base, source: info.transcript ? 'youtube-transcript' : 'youtube-description' }, 200, cors);
     } catch (e) { firstErr = e.message || String(e); }
   }
