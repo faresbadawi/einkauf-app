@@ -126,11 +126,11 @@ function gemini(key, prompt, schema, models, HEDGE = 2500, opt = {}) {
     const finish = (fn, v) => { if (done) return; done = true; clearTimeout(timer); ctrls.forEach(c => c.abort()); fn(v); };
     const launch = () => {
       if (done) return;
-      if (next >= models.length) { if (!running) finish(reject, new Error(errs.at(-1) || 'keine Antwort')); return; }
+      if (next >= models.length) { if (!running) finish(reject, new Error(errs.some(e => / 503| 429|overloaded|high demand/i.test(e)) ? 'Gemini ist gerade überlastet – bitte gleich nochmal versuchen' : errs.at(-1) || 'keine Antwort')); return; }
       const model = models[next++], ctrl = new AbortController(); ctrls.push(ctrl); running++;
       clearTimeout(timer); timer = setTimeout(launch, HEDGE);
       call(model, ctrl.signal).then(out => finish(resolve, { out, model, ms: Date.now() - t0 }), e => {
-        running--; errs.push(`${model}: ${e.message || e}`);
+        running--; errs.push(`${model}: ${String(e.message || e).replace(/\s+/g, ' ').slice(0, 120)}`);
         if (e.fatal) return finish(reject, e);
         launch();
       });
@@ -194,7 +194,10 @@ async function importYouTube(id, key, lg, cors) {
   const base = { image: `https://i.ytimg.com/vi/${id}/hqdefault.jpg`, url: `https://www.youtube.com/watch?v=${id}` };
   const info = await ytInfo(id);
   let firstErr = '';
-  if (info.desc.length + info.transcript.length > 80) {
+  // Beschreibung nur nutzen, wenn sie wirklich eine Zutatenliste enthält (sonst rät die KI)
+  const qtyLines = (info.desc.match(/^\s*[-•*▪️✅]?\s*(\d+([.,/]\d+)?|½|¼|¾)\s*\S+/gm) || []).length;
+  const hasList = /zutaten|ingredients|المكونات|المقادير|مقادير/i.test(info.desc) || qtyLines >= 3;
+  if ((hasList && info.desc.length > 80) || info.transcript.length > 300) {
     try {
       const text = `YouTube video: ${info.title}\n\nVIDEO DESCRIPTION:\n${info.desc.slice(0, 8000)}\n\nTRANSCRIPT (auto-generated, may contain recognition errors; amounts may only be spoken):\n${info.transcript.slice(0, 16000)}`;
       const out = await recipeAI(key, text, lg, 'The source is a cooking video. Prefer an ingredient list from the description; otherwise collect ingredients and amounts from the transcript. Write clean steps from what is done in the video. Ignore sponsoring, links and greetings.');
@@ -206,7 +209,7 @@ async function importYouTube(id, key, lg, cors) {
     const out = await recipeAI(key, `Watch the attached cooking video${info.title ? ` ("${info.title}")` : ''} and write down its recipe.`, lg, 'Take amounts from what is said or shown; estimate sensibly only if the video clearly shows the amount.',
       { parts: [{ file_data: { file_uri: base.url } }], media: 'MEDIA_RESOLUTION_LOW', timeout: 90000 });
     return json({ ...out, ...base, source: 'youtube-video' }, 200, cors);
-  } catch (e) { return json({ error: `Aus dem Video ließ sich kein Rezept lesen (${(e.message || e) || firstErr})` }, 502, cors); }
+  } catch (e) { return json({ error: `Aus dem Video ließ sich kein Rezept lesen: ${e.message || e}` }, 502, cors); }
 }
 
 async function recipeAI(key, input, lg, extra = '', opt = null) {
@@ -220,7 +223,7 @@ async function recipeAI(key, input, lg, extra = '', opt = null) {
 
 SOURCE:
 ${input.slice(0, MAX_TEXT)}`;
-  const { out, model, ms } = await (opt ? gemini(key, prompt, RECIPE_SCHEMA, ['gemini-2.5-flash', 'gemini-flash-latest'], 60000, opt) : gemini(key, prompt, RECIPE_SCHEMA, SMART, 7000));
+  const { out, model, ms } = await (opt ? gemini(key, prompt, RECIPE_SCHEMA, ['gemini-2.5-flash', 'gemini-2.5-flash-lite', 'gemini-flash-latest', 'gemini-2.0-flash', 'gemini-flash-lite-latest'], 25000, opt) : gemini(key, prompt, RECIPE_SCHEMA, SMART, 7000));
   out._ai = `${model} ${ms}ms`;
   if (!out.title) throw new Error('Kein Rezept gefunden');
   return out;
