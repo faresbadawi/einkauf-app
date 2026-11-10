@@ -3,6 +3,7 @@ import { workerUrl } from './config.js';
 import { t, getLang, setLang, applyLang } from './i18n.js';
 import { CATS, CAT, CAT_ORDER, PRODUCTS, PRODUCT, norm, search, findProduct } from './catalog.js';
 import { demoRecipes } from './demo.js';
+import { OLD_LIST } from './oldlist.js';
 
 /* ---------- Helfer ---------- */
 const $ = (s, r = document) => r.querySelector(s);
@@ -14,6 +15,8 @@ const normCode = c => c.toUpperCase().replace(/[^A-Z0-9]/g, '');
 const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 const isAr = s => /[؀-ۿ]/.test(s);
 const WORKER = (localStorage.getItem('ut:worker') ?? workerUrl).trim().replace(/\/?$/, '/').replace(/^\/$/, '');
+const gkey = () => { try { return localStorage.getItem('ut:gkey') || ''; } catch { return ''; } };
+const aiHeaders = json => ({ ...(json ? { 'Content-Type': 'application/json' } : {}), ...(gkey() ? { 'X-Gemini-Key': gkey() } : {}) });
 
 const IC = {
   bag: 'M5.5 8h13l1 12h-15l1-12zM9 8V7a3 3 0 0 1 6 0v1',
@@ -34,6 +37,8 @@ const IC = {
   globe: 'M12 3.500a8.500 8.500 0 1 0 0 17 8.500 8.500 0 0 0 0-17zM3.500 12h17M12 3.500c3 3 3 14 0 17M12 3.500c-3 3-3 14 0 17',
   store: 'M4.500 9.500L6 4.500h12l1.500 5M4.500 9.500v10h15v-10M4.500 9.500h15M9.500 19.500v-5.500h5v5.500',
   home: 'M4.500 11L12 4.500 19.500 11v8.500h-15zM9.500 19.500v-5h5v5',
+  bell: 'M6 16.500V11a6 6 0 0 1 12 0v5.500l1.500 1.500h-15zM10 20.500h4',
+  list: 'M9 6.500h11M9 12h11M9 17.500h11M4.500 6.500h.01M4.500 12h.01M4.500 17.500h.01',
   link: 'M10 14a4 4 0 0 0 5.700 0l3-3A4 4 0 0 0 13 5.300l-1 1M14 10a4 4 0 0 0-5.700 0l-3 3A4 4 0 0 0 11 18.700l1-1'
 };
 const ico = n => `<svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="${IC[n].replace(/(\d)00(?=\D|$)/g, '$1')}"/></svg>`;
@@ -76,9 +81,41 @@ const storeColor = s => COLORS[(s.color || 0) % COLORS.length];
 const itemStore = i => storeMap.has(i.store) ? i.store : '';
 const recipe = id => S.recipes.find(r => r.id === id);
 
-function toast(msg) {
-  const el = $('#toast'); el.textContent = msg; el.classList.remove('hidden');
-  clearTimeout(toast.t); toast.t = setTimeout(() => el.classList.add('hidden'), 2400);
+function toast(msg, act) {
+  const el = $('#toast');
+  el.innerHTML = `<span>${esc(msg)}</span>${act ? `<button>${esc(act.label)}</button>` : ''}`;
+  if (act) el.querySelector('button').onclick = () => { act.fn(); el.classList.add('hidden'); };
+  el.classList.remove('hidden');
+  clearTimeout(toast.t); toast.t = setTimeout(() => el.classList.add('hidden'), act ? 5000 : 2400);
+}
+
+/* ---------- Ton & Vibration ---------- */
+const fxOn = () => { try { return localStorage.getItem('ut:fx') !== '0'; } catch { return true; } };
+const vib = ms => { if (!fxOn()) return; try { navigator.vibrate?.(ms); } catch {} };
+let hapEl = null, actx = null;
+/** iPhone (iOS 18+): kurzes haptisches Feedback über einen versteckten Schalter */
+function haptic() {
+  if (!fxOn() || 'vibrate' in navigator) return;
+  try {
+    if (!hapEl) { hapEl = document.createElement('label'); hapEl.className = 'hap'; hapEl.innerHTML = '<input type="checkbox" switch>'; document.body.append(hapEl); }
+    hapEl.click();
+  } catch {}
+}
+function tick(on) {
+  if (!fxOn()) return;
+  vib(on ? 14 : 8); haptic();
+  try {
+    actx ||= new (window.AudioContext || window.webkitAudioContext)();
+    if (actx.state === 'suspended') actx.resume();
+    const t0 = actx.currentTime + .005;
+    const tone = (f1, f2, start, len, vol) => {
+      const o = actx.createOscillator(), g = actx.createGain();
+      o.type = 'sine'; o.frequency.setValueAtTime(f1, t0 + start); o.frequency.exponentialRampToValueAtTime(f2, t0 + start + len * .6);
+      g.gain.setValueAtTime(.0001, t0 + start); g.gain.exponentialRampToValueAtTime(vol, t0 + start + .012); g.gain.exponentialRampToValueAtTime(.0001, t0 + start + len);
+      o.connect(g).connect(actx.destination); o.start(t0 + start); o.stop(t0 + start + len + .02);
+    };
+    if (on) { tone(1046, 1180, 0, .09, .16); tone(1568, 1760, .06, .14, .12); } else tone(520, 400, 0, .1, .1);
+  } catch {}
 }
 
 /* ---------- Mengen ---------- */
@@ -171,18 +208,20 @@ function setItemStore(i, sid) {
 const aiQ = new Map(); let aiT = 0;
 function enrich(key, name) { if (!WORKER) return; aiQ.set(key, name); clearTimeout(aiT); aiT = setTimeout(flushAI, 800); }
 async function flushAI() {
-  const batch = [...aiQ]; aiQ.clear();
+  const batch = [...aiQ].slice(0, 25); for (const [k] of batch) aiQ.delete(k);
+  if (aiQ.size) aiT = setTimeout(flushAI, 1500);
   try {
-    const r = await fetch(WORKER + 'items', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ names: batch.map(b => b[1]) }), signal: AbortSignal.timeout(60000) });
+    const r = await fetch(WORKER + 'items', { method: 'POST', headers: aiHeaders(true), body: JSON.stringify({ names: batch.map(b => b[1]) }), signal: AbortSignal.timeout(60000) });
     const d = await r.json();
-    for (const [key, name] of batch) {
-      const hit = (d.items || []).find(x => norm(x.name) === norm(name)), cur = customMap.get(key);
-      if (!hit || !cur || cur.ai) continue;
+    const items = d.items || [];
+    batch.forEach(([key, name], idx) => {
+      const hit = items.find(x => norm(x.name) === norm(name)) || (items.length === batch.length ? items[idx] : null), cur = customMap.get(key);
+      if (!hit || !cur || cur.ai) return;
       const cat = CAT[hit.cat] ? hit.cat : 'sonst';
       store.put('custom', { id: key, de: cur.de || hit.de || '', ar: cur.ar || hit.ar || '', cat, emoji: hit.emoji || '🛒', ai: 1 });
       const it = S.items.find(i => i.key === key), ds = defaultStore(key, cat);
       if (it && it.auto && it.store !== ds) store.put('items', { ...it, store: ds });
-    }
+    });
   } catch {}
 }
 
@@ -229,12 +268,12 @@ function netLine(open, count = true) {
 }
 function itemRow(i) {
   const sub = [i.qty, i.note].filter(Boolean).map(esc).join(' · ');
-  return `<div class="it ${i.done ? 'done' : ''}" data-id="${i.id}"><span class="chk">${ico('check')}</span><span class="em">${itemEmoji(i)}</span>
+  return `<div class="it ${i.done ? 'done' : ''} ${S.pop === i.id ? 'pop' : ''}" data-id="${i.id}"><div class="ri"><span class="chk">${ico('check')}</span><span class="em">${itemEmoji(i)}</span>
     <span class="nm"><b dir="auto">${esc(itemName(i))}</b>${sub ? `<small dir="auto">${sub}</small>` : ''}</span>
-    <button class="more" data-item="${i.id}" aria-label="${t('edit')}">${ico('dots')}</button></div>`;
+    <button class="more" data-item="${i.id}" aria-label="${t('edit')}">${ico('dots')}</button></div></div>`;
 }
 const byCatName = (a, b) => CAT_ORDER[itemCat(a)] - CAT_ORDER[itemCat(b)] || itemName(a).localeCompare(itemName(b), getLang());
-const group = (title, arr, style = '') => arr.length ? `<section class="grp"><h3 ${style}>${title}<small>${arr.length}</small></h3><div class="card">${arr.sort(byCatName).map(itemRow).join('')}</div></section>` : '';
+const group = (title, arr, style = '', drop) => arr.length ? `<section class="grp" ${drop != null ? `data-drop="${drop}"` : ''}><h3 ${style}>${title}<small>${arr.length}</small></h3><div class="card">${arr.sort(byCatName).map(itemRow).join('')}</div></section>` : '';
 
 function suggHtml(text) {
   const name = parseLine(text.split(/[,،]/).pop() || '').name.trim();
@@ -248,7 +287,7 @@ function vList() {
   if (S.storeF && !storeMap.has(S.storeF)) S.storeF = '';
   const count = id => open.filter(i => itemStore(i) === id).length;
   const chips = sts.length ? `<div class="chips"><button class="chip ${S.storeF ? '' : 'on'}" data-sf="">${t('all')}<i>${open.length}</i></button>
-    ${sts.map(s => `<button class="chip ${S.storeF === s.id ? 'on' : ''}" data-sf="${s.id}" style="--c:${storeColor(s)}"><span>${s.emoji}</span>${esc(storeName(s))}${count(s.id) ? `<i>${count(s.id)}</i>` : ''}</button>`).join('')}
+    ${sts.map(s => `<button class="chip ${S.storeF === s.id ? 'on' : ''}" data-sf="${s.id}" data-drop="${s.id}" style="--c:${storeColor(s)}"><span>${s.emoji}</span>${esc(storeName(s))}${count(s.id) ? `<i>${count(s.id)}</i>` : ''}</button>`).join('')}
     <button class="chip plain" id="manageStores" aria-label="${t('manageStores')}">${ico('sliders')}</button></div>` : '';
 
   let body = '';
@@ -261,17 +300,22 @@ function vList() {
       + group(`<span class="ge">📍</span>${t('anywhere')}`, any)
       + (!mine.length && !any.length ? `<div class="empty small"><div class="art">✅</div><b>${t('allDone')}</b></div>` : '');
   } else {
-    body = sts.map(s => group(`<span class="ge">${s.emoji}</span>${esc(storeName(s))}`, open.filter(i => itemStore(i) === s.id), `style="--c:${storeColor(s)}" class="st"`)).join('')
-      + group(`<span class="ge">📍</span>${sts.length ? t('noStore') : t('list')}`, open.filter(i => !itemStore(i)))
+    body = sts.map(s => group(`<span class="ge" style="--c:${storeColor(s)}">${s.emoji}</span>${esc(storeName(s))}`, open.filter(i => itemStore(i) === s.id), `style="--c:${storeColor(s)}" class="st"`, s.id)).join('')
+      + group(`<span class="ge">📍</span>${sts.length ? t('noStore') : t('list')}`, open.filter(i => !itemStore(i)), '', '')
       + (!open.length ? `<div class="empty small"><div class="art">✅</div><b>${t('allDone')}</b></div>` : '');
   }
   const doneHtml = done.length ? `<details class="doneBox" id="doneBox" ${S.doneOpen ? 'open' : ''}><summary>${t('done')}<small>${done.length}</small></summary>
     <div class="card">${done.map(itemRow).join('')}</div><button class="btn ghost" id="clearDone">${ico('trash')}${t('clearDone')}</button></details>` : '';
 
-  return `<header class="top"><div><h1>${t('list')}</h1><p class="sub">${netLine(open.length)}</p></div></header>
+  const pct = S.items.length ? Math.round(done.length / S.items.length * 100) : 0;
+  const showOld = !S.meta.some(m => m.id === 'oldlist') && localStorage.getItem('ut:oldX') !== code;
+  const banner = showOld ? `<div class="banner"><span class="be">📋</span><span class="bt"><b>${t('oldTitle')}</b><small>${t('oldBanner', { n: OLD_LIST.length })}</small></span>
+    <button class="btn fit" id="oldOpen">${t('oldGo')}</button><button class="mini" id="oldX" aria-label="×">${ico('close')}</button></div>` : '';
+  const hint = open.length && localStorage.getItem('ut:hint') !== '1' ? `<p class="tip" id="tipX">${t('gestureTip')}<button class="mini">${ico('close')}</button></p>` : '';
+  return `<header class="top"><div><h1>${t('list')}</h1><p class="sub">${netLine(open.length)}</p>${S.items.length ? `<div class="prog"><i style="width:${pct}%"></i></div>` : ''}</div></header>${banner}
   <form class="add" id="addForm" autocomplete="off"><label class="inp">${ico('plus')}<input id="addInput" dir="auto" placeholder="${t('addPh')}" enterkeyhint="done"></label>
     <button type="button" class="catBtn" id="openCatalog">${ico('grid')}<span>${t('catalog')}</span></button></form>
-  <div class="sugg" id="sugg"></div>${chips}${body}${doneHtml}`;
+  <div class="sugg" id="sugg"></div>${chips}${hint}${body}${doneHtml}`;
 }
 
 /* ---------- Ansicht: Rezepte ---------- */
@@ -327,14 +371,17 @@ function vMore() {
   <section class="grp"><div class="card menu">
     <button id="manageStores">${ico('store')}<span>${t('manageStores')}<small>${t('nStores', { n: S.stores.length })}</small></span>${ico('fwd')}</button>
     <button id="demoBtn">${ico('spark')}<span>${hasDemo ? t('removeDemo') : t('loadDemo')}<small>${t('demoSub')}</small></span></button>
-    <div class="mrow">${ico('globe')}<span>${t('ai')}<small>${ai}</small></span><i class="dot ${S.ai === true ? 'on' : S.ai == null ? '' : 'off'}"></i></div>
+    <button id="aiOpen">${ico('globe')}<span>${t('ai')}<small>${gkey() ? t('ownKeySet') + ' · ' : ''}${ai}</small></span><i class="dot ${S.ai === true ? 'on' : S.ai == null ? '' : 'off'}"></i>${ico('fwd')}</button>
+    <button id="fxBtn">${ico('bell')}<span>${t('fx')}<small>${t('fxSub')}</small></span><span class="sw ${fxOn() ? 'on' : ''}"><i></i></span></button>
+    <button id="oldOpen">${ico('list')}<span>${t('oldTitle')}<small>${t('oldBanner', { n: OLD_LIST.length })}</small></span>${ico('fwd')}</button>
   </div></section>`;
 }
 
 /* ---------- Render ---------- */
 const TABS = [['list', 'tabList', 'bag'], ['recipes', 'tabRecipes', 'book'], ['plan', 'tabPlan', 'cal'], ['more', 'tabMore', 'sliders']];
 let sheetRefresh = null, raf = 0;
-const schedule = () => { if (!raf) raf = requestAnimationFrame(() => { raf = 0; render(); }); };
+let G = null, pendingRender = false, suppressClick = 0;
+const schedule = () => { if (G?.mode) { pendingRender = true; return; } if (!raf) raf = requestAnimationFrame(() => { raf = 0; if (G?.mode) pendingRender = true; else render(); }); };
 function render() {
   const act = document.activeElement, keep = act?.id && ['addInput', 'rSearch', 'mJoin'].includes(act.id) ? act.id : null;
   const sel = keep ? [act.selectionStart, act.selectionEnd] : null;
@@ -363,15 +410,15 @@ const head = (title, sub = '') => `<div class="sh"><div><h2 dir="auto">${title}<
 
 /* Katalog */
 function openCatalog() {
-  const st = { cat: 'all', q: '' };
+  const st = { cat: S.prefs.length ? 'mine' : 'all', q: '' };
   show(`<div class="cHead"><button class="round" data-x="close" aria-label="‹">${ico('back')}</button><label class="inp search">${ico('search')}<input id="cSearch" type="search" dir="auto" placeholder="${t('searchProducts')}" autocomplete="off"></label></div>
     <div class="chips" id="cChips"></div><div class="tiles" id="cTiles"></div>
     <div class="cFoot"><button class="btn" data-x="close" id="cDone"></button></div>`, 'full');
   const onKeys = () => new Set(S.items.filter(i => !i.done).map(i => i.key));
   const tile = (p, on) => `<button class="tile ${on.has(p.id) ? 'on' : ''}" data-key="${esc(p.id)}"><span class="em">${p.emoji}</span><span class="nm" dir="auto">${esc(pName(p))}</span><i>${ico('check')}</i></button>`;
   const draw = () => {
-    const on = onKeys(), hasMine = customMap.size > 0;
-    $('#cChips').innerHTML = `<button class="chip ${st.cat === 'all' ? 'on' : ''}" data-cc="all">${t('all')}</button>${hasMine ? `<button class="chip ${st.cat === 'mine' ? 'on' : ''}" data-cc="mine"><span>⭐</span>${t('mine')}</button>` : ''}`
+    const on = onKeys(), known = new Set([...prefMap.keys(), ...customMap.keys()]), hasMine = known.size > 0;
+    $('#cChips').innerHTML = `${hasMine ? `<button class="chip ${st.cat === 'mine' ? 'on' : ''}" data-cc="mine"><span>⭐</span>${t('mine')}</button>` : ''}<button class="chip ${st.cat === 'all' ? 'on' : ''}" data-cc="all">${t('all')}</button>`
       + CATS.filter(c => c.id !== 'sonst').map(c => `<button class="chip ${st.cat === c.id ? 'on' : ''}" data-cc="${c.id}"><span>${c.emoji}</span>${c[getLang()]}</button>`).join('');
     let html;
     if (st.q.trim()) {
@@ -379,8 +426,13 @@ function openCatalog() {
       html = (exact ? '' : `<button class="tile new" data-new="1"><span class="em">＋</span><span class="nm" dir="auto">${esc(t('addCustom', { name: st.q.trim() }))}</span></button>`) + hits.map(p => tile(p, on)).join('');
     } else if (st.cat === 'all') {
       html = CATS.map(c => { const ps = allProducts.filter(p => p.cat === c.id); return ps.length ? `<h4><span>${c.emoji}</span>${c[getLang()]}</h4>` + ps.map(p => tile(p, on)).join('') : ''; }).join('');
+    } else if (st.cat === 'mine') {
+      const mine = allProducts.filter(p => known.has(p.id)).sort((a, b) => CAT_ORDER[a.cat] - CAT_ORDER[b.cat] || pName(a).localeCompare(pName(b), getLang()));
+      const sec = (title, ps) => ps.length ? `<h4>${title}<small>${ps.length}</small></h4>` + ps.map(p => tile(p, on)).join('') : '';
+      html = stores().map(s => sec(`<span>${s.emoji}</span>${esc(storeName(s))}`, mine.filter(p => prefMap.get(p.id) === s.id))).join('')
+        + sec(`<span>📍</span>${t('noStore')}`, mine.filter(p => !storeMap.has(prefMap.get(p.id))));
     } else {
-      html = allProducts.filter(p => st.cat === 'mine' ? p.custom : p.cat === st.cat).map(p => tile(p, on)).join('') || `<p class="hint center">${t('nothing')}</p>`;
+      html = allProducts.filter(p => p.cat === st.cat).map(p => tile(p, on)).join('') || `<p class="hint center">${t('nothing')}</p>`;
     }
     $('#cTiles').innerHTML = html; foot(on);
   };
@@ -393,6 +445,7 @@ function openCatalog() {
     if (e.target.closest('[data-new]')) { addText(st.q); st.q = ''; $('#cSearch').value = ''; st.cat = 'mine'; draw(); return; }
     const tl = e.target.closest('.tile[data-key]'); if (!tl) return;
     const key = tl.dataset.key, it = S.items.find(i => i.key === key && !i.done);
+    vib(10);
     if (it) store.remove('items', it.id); else addEntry(key, pName(prod(key)));
   };
   draw();
@@ -482,7 +535,7 @@ function openRecipe(id, st = { serv: null, off: new Set() }) {
     <div class="rbody"><h2 dir="auto">${esc(r.title)}</h2>
     <div class="facts">${r.time ? `<span>⏱ ${r.time} ${t('min')}</span>` : ''}<span>${RCATS.find(c => c[0] === rcatOf(r))[1]} ${t('rc_' + rcatOf(r))}</span></div>
     <div class="secHead"><h3>${t('ingredients')}</h3>${base ? `<div class="stepper"><button data-x="s-" aria-label="−">${ico('minus')}</button><span>${serv} ${t('persons')}</span><button data-x="s+" aria-label="+">${ico('plus')}</button></div>` : ''}</div>
-    ${lines.length ? `<div class="card">${lines.map((p, i) => `<button class="it ing2 ${st.off.has(i) ? '' : 'sel'}" data-i="${i}"><span class="chk">${ico('check')}</span><span class="nm"><b dir="auto">${esc(p.name)}</b></span><span class="q" dir="auto">${esc(fmtQty(f === 1 ? p.num : niceNum(p.num == null ? null : p.num * f, p.unit), p.unit))}</span></button>`).join('')}</div>
+    ${lines.length ? `<div class="card">${lines.map((p, i) => `<button class="ing2 ${st.off.has(i) ? '' : 'sel'}" data-i="${i}"><span class="chk">${ico('check')}</span><span class="nm"><b dir="auto">${esc(p.name)}</b></span><span class="q" dir="auto">${esc(fmtQty(f === 1 ? p.num : niceNum(p.num == null ? null : p.num * f, p.unit), p.unit))}</span></button>`).join('')}</div>
       <button class="btn" data-x="tolist" ${n ? '' : 'disabled'}>${ico('bag')}${t('toListN', { n })}</button>` : `<p class="hint">${t('noIngredients')}</p>`}
     <div class="secHead"><h3>${t('steps')}</h3></div>
     <div class="steps" dir="auto">${esc(r.steps) || `<span class="hint">${t('noSteps')}</span>`}</div>
@@ -507,7 +560,7 @@ async function ai(path, body, query = '') {
   if (!WORKER) throw new Error(t('aiNoWorker'));
   let r;
   try {
-    r = await fetch(WORKER + path + query, body ? { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body), signal: AbortSignal.timeout(120000) } : { signal: AbortSignal.timeout(120000) });
+    r = await fetch(WORKER + path + query, body ? { method: 'POST', headers: aiHeaders(true), body: JSON.stringify(body), signal: AbortSignal.timeout(120000) } : { headers: aiHeaders(false), signal: AbortSignal.timeout(120000) });
   } catch { throw new Error(t('aiErr')); }
   const d = await r.json().catch(() => ({ error: 'HTTP ' + r.status }));
   if (!r.ok || d.error) throw new Error(d.error || 'HTTP ' + r.status);
@@ -620,6 +673,7 @@ document.addEventListener('click', async e => {
   const tab = el.closest('#tabs [data-tab]');
   if (tab) { S.tab = tab.dataset.tab; scrollTo(0, 0); render(); if (S.tab === 'more') checkAI(); return; }
   if (dlg.open) return;
+  if (Date.now() - suppressClick < 450) return;
   const sg = el.closest('[data-sugg]');
   if (sg) { const inp = $('#addInput'), parts = inp.value.split(/[,،]/), last = parseLine(parts.pop());
     if (!addEntry(sg.dataset.sugg, pName(prod(sg.dataset.sugg)), fmtQty(last.num, last.unit))) toast(t('onList'));
@@ -627,7 +681,9 @@ document.addEventListener('click', async e => {
   const sf = el.closest('[data-sf]'); if (sf) { S.storeF = sf.dataset.sf; return render(); }
   const itemBtn = el.closest('[data-item]'); if (itemBtn) return openItem(itemBtn.dataset.item);
   const row = el.closest('.it[data-id]');
-  if (row) { const it = S.items.find(i => i.id === row.dataset.id); if (it) store.put('items', { ...it, done: !it.done }); return; }
+  if (row) { const it = S.items.find(i => i.id === row.dataset.id); if (!it) return;
+    tick(!it.done); S.pop = it.done ? null : it.id; clearTimeout(S.popT); S.popT = setTimeout(() => { S.pop = null; }, 700);
+    store.put('items', { ...it, done: !it.done }); return; }
   const fav = el.closest('[data-fav]'); if (fav) { const r = recipe(fav.dataset.fav); if (r) store.put('recipes', { ...r, fav: !r.fav }); return; }
   const op = el.closest('[data-open]'); if (op) return openRecipe(op.dataset.open);
   const rc = el.closest('[data-rcat]'); if (rc) { S.rcat = rc.dataset.rcat; return render(); }
@@ -636,6 +692,11 @@ document.addEventListener('click', async e => {
   const id = el.closest('[id]')?.id;
   if (id === 'openCatalog' || id === 'openCatalog2') openCatalog();
   else if (id === 'manageStores') openStores();
+  else if (id === 'oldOpen') openImport();
+  else if (id === 'oldX') { localStorage.setItem('ut:oldX', code); render(); }
+  else if (id === 'tipX') { localStorage.setItem('ut:hint', '1'); render(); }
+  else if (id === 'aiOpen') openAI();
+  else if (id === 'fxBtn') { localStorage.setItem('ut:fx', fxOn() ? '0' : '1'); render(); tick(true); }
   else if (id === 'clearDone') S.items.filter(i => i.done).forEach(i => store.remove('items', i.id));
   else if (id === 'newRecipe' || id === 'newRecipe2') newRecipe();
   else if (id === 'favF') { S.fav = !S.fav; render(); }
@@ -676,6 +737,155 @@ function seed() {
   old('items').filter(i => !i.demo && !i.done).forEach(i => addText(`${i.qty || ''} ${i.name}`));
 }
 
+let enrichedOnce = false;
+/** Eigene Artikel, die noch nicht übersetzt sind (z. B. App wurde vorher geschlossen), einmal pro Start nachholen */
+function retryEnrich() {
+  if (enrichedOnce || !store?.net.synced) return;
+  enrichedOnce = true;
+  for (const c of customMap.values()) if (!c.ai && (!c.de || !c.ar)) enrich(c.id, c.de || c.ar);
+}
+
+/* ---------- Frühere Liste übernehmen ---------- */
+function importOld(onList) {
+  const SID = { a: 's-arab', s: 's-super', d: 's-dm' };
+  let n = 0;
+  for (const e of OLD_LIST) {
+    const p = PRODUCTS.find(x => x.de === e.de), key = p ? p.id : 'c:' + norm(e.de);
+    if (!p && !customMap.has(key)) store.put('custom', { id: key, de: e.de, ar: e.ar, cat: e.cat, emoji: e.emoji, ai: 1 });
+    if (!prefMap.has(key)) store.put('prefs', { id: key, store: storeMap.has(SID[e.s]) ? SID[e.s] : '' });
+    if ((onList || e.open) && addEntry(key, p ? pName(p) : e.de)) n++;
+  }
+  store.put('meta', { id: 'oldlist', t: Date.now() });
+  return n;
+}
+function openImport() {
+  const cnt = k => OLD_LIST.filter(e => e.s === k).length;
+  const row = (sid, k) => { const s = storeMap.get(sid); return s ? `<div class="ing"><span>${s.emoji} ${esc(storeName(s))}</span><span>${cnt(k)}</span></div>` : ''; };
+  show(`${head(t('oldTitle'))}<p class="hint">${t('oldSub', { n: OLD_LIST.length })}</p>
+    <div class="card pad">${row('s-arab', 'a')}${row('s-super', 's')}${row('s-dm', 'd')}</div>
+    <button class="opt" data-x="list"><span class="oe">🛒</span><span><b>${t('oldToList')}</b><small>${t('oldToListSub')}</small></span>${ico('fwd')}</button>
+    <button class="opt" data-x="known"><span class="oe">⭐</span><span><b>${t('oldKnown')}</b><small>${t('oldKnownSub')}</small></span>${ico('fwd')}</button>`);
+  sheet.onclick = e => {
+    const x = e.target.closest('[data-x]')?.dataset.x; if (!x) return;
+    if (x === 'close') return close();
+    const n = importOld(x === 'list'); close();
+    toast(x === 'list' ? t('added', { n }) : t('oldDone', { n: OLD_LIST.length }));
+  };
+}
+
+/* ---------- KI-Einstellungen ---------- */
+function openAI(result = '') {
+  const srv = !WORKER ? t('aiOff') : S.ai === true ? t('aiOk') : S.ai === false ? t('aiOff') : S.ai == null ? t('aiCheck') : t('aiErr');
+  show(`${head(t('ai'))}<p class="hint">${t('aiInfo')}</p>
+    <div class="card menu"><div class="mrow">${ico('globe')}<span>${t('aiServer')}<small>${srv}</small></span><i class="dot ${S.ai === true ? 'on' : 'off'}"></i></div></div>
+    <label class="lb">${t('ownKey')}</label>
+    <input class="field" id="gKey" type="password" dir="ltr" autocomplete="off" spellcheck="false" placeholder="AIza…" value="${esc(gkey())}">
+    <p class="hint">${t('ownKeyHint')} <a class="a" href="https://aistudio.google.com/apikey" target="_blank" rel="noopener">aistudio.google.com/apikey</a></p>
+    ${result}
+    <div class="row"><button class="btn ghost" data-x="save">${t('save')}</button><button class="btn" data-x="test">${ico('spark')}${t('aiTest')}</button></div>`);
+  const save = () => { const v = $('#gKey').value.trim(); v ? localStorage.setItem('ut:gkey', v) : localStorage.removeItem('ut:gkey'); };
+  sheet.onclick = async e => {
+    const x = e.target.closest('[data-x]')?.dataset.x; if (!x) return;
+    if (x === 'close') return close();
+    save();
+    if (x === 'save') { toast(t('saved')); return close(); }
+    busy(t('aiTesting'));
+    const t0 = Date.now();
+    try {
+      const d = await ai('items', { names: ['Milch', 'خبز'] });
+      const sec = ((Date.now() - t0) / 1000).toFixed(1);
+      openAI(`<div class="ok"><b>✓ ${t('aiWorks')} (${sec} s)</b><span>${(d.items || []).map(i => `${esc(i.de)} ⇄ ${esc(i.ar)}`).join(' · ')}</span></div>`);
+    } catch (err) { if (dlg.open) openAI(`<div class="err"><b>${t('aiFail')}</b><span dir="auto">${esc(err.message)}</span></div>`); }
+  };
+}
+
+/* ---------- Gesten: Wischen = Löschen, lange drücken + ziehen = anderer Markt ---------- */
+function delItem(id) {
+  const it = S.items.find(i => i.id === id); if (!it) return;
+  store.remove('items', id); vib(12);
+  toast(t('deleted', { name: itemName(it) }), { label: t('undo'), fn: () => store.put('items', it) });
+}
+function showDropbar() {
+  const bar = $('#dropbar');
+  bar.innerHTML = `<p>${t('dropHere')}</p><div class="dzs">${stores().map(s => `<div class="dz" data-drop="${s.id}" style="--c:${storeColor(s)}"><span>${s.emoji}</span><b dir="auto">${esc(storeName(s))}</b></div>`).join('')}
+    <div class="dz" data-drop=""><span>📍</span><b>${t('noStore')}</b></div><div class="dz del" data-drop="__del"><span>🗑️</span><b>${t('del')}</b></div></div>`;
+  bar.classList.add('on');
+}
+function startDrag() {
+  if (!G || !S.items.some(i => i.id === G.id)) return endG(true);
+  G.mode = 'drag'; vib(25); haptic();
+  const r = G.row.getBoundingClientRect(), gh = G.row.cloneNode(true);
+  gh.className = 'it dragGhost'; Object.assign(gh.style, { width: r.width + 'px', left: r.left + 'px', top: r.top + 'px' });
+  document.body.append(gh); G.ghost = gh; G.row.classList.add('lifted'); document.body.classList.add('dragging');
+  showDropbar(); moveDrag();
+  const loop = () => {
+    if (!G || G.mode !== 'drag') return;
+    const barTop = $('#dropbar').getBoundingClientRect().top;
+    if (G.y < 110) scrollBy(0, -9); else if (G.y > barTop - 50 && G.y < barTop) scrollBy(0, 9);
+    moveDrag(); G.raf = requestAnimationFrame(loop);
+  };
+  G.raf = requestAnimationFrame(loop);
+}
+function moveDrag() {
+  G.ghost.style.transform = `translate(${G.x - G.x0}px, ${G.y - G.y0}px) rotate(-1.2deg) scale(1.03)`;
+  const over = document.elementFromPoint(G.x, G.y)?.closest('[data-drop]') || null;
+  if (over !== G.over) { G.over?.classList.remove('over'); over?.classList.add('over'); if (over) vib(6); G.over = over; }
+}
+function endG(cancel) {
+  if (!G) return;
+  const g = G; G = null; clearTimeout(g.lp);
+  if (g.mode === 'swipe') {
+    suppressClick = Date.now();
+    const dx = g.x - g.x0, w = g.row.offsetWidth;
+    g.ri.style.transition = 'transform .2s ease';
+    if (!cancel && Math.abs(dx) > w * .33) { g.ri.style.transform = `translateX(${Math.sign(dx) * w}px)`; setTimeout(() => { delItem(g.id); flushRender(); }, 170); return; }
+    g.ri.style.transform = '';
+    setTimeout(() => { g.row.classList.remove('swiping', 'arm', 'l', 'r'); g.ri.style.transition = ''; flushRender(); }, 210);
+    return;
+  }
+  if (g.mode === 'drag') {
+    suppressClick = Date.now(); cancelAnimationFrame(g.raf);
+    g.ghost.remove(); g.row.classList.remove('lifted'); g.over?.classList.remove('over');
+    $('#dropbar').classList.remove('on'); document.body.classList.remove('dragging');
+    const it = S.items.find(i => i.id === g.id);
+    if (!cancel && g.over && it) {
+      const d = g.over.dataset.drop;
+      if (d === '__del') delItem(it.id);
+      else if (d !== itemStore(it)) { setItemStore(it, d); tick(true); toast(t('movedTo', { name: d ? storeName(storeMap.get(d)) : t('noStore') })); }
+    }
+  }
+  flushRender();
+}
+function flushRender() { if (pendingRender && !G?.mode) { pendingRender = false; render(); } }
+
+document.addEventListener('pointerdown', e => {
+  if (dlg.open || e.button > 0 || G) return;
+  const row = e.target.closest('#app .it[data-id]');
+  if (!row || e.target.closest('.more')) return;
+  G = { row, ri: row.querySelector('.ri'), id: row.dataset.id, x0: e.clientX, y0: e.clientY, x: e.clientX, y: e.clientY, mode: null };
+  G.lp = setTimeout(() => { if (G && !G.mode && !row.classList.contains('done')) startDrag(); }, 420);
+});
+addEventListener('pointermove', e => {
+  if (!G) return;
+  G.x = e.clientX; G.y = e.clientY;
+  const dx = G.x - G.x0, dy = G.y - G.y0;
+  if (!G.mode) {
+    if (Math.abs(dy) > 10 && Math.abs(dy) > Math.abs(dx)) { clearTimeout(G.lp); G = null; return; }
+    if (Math.abs(dx) < 12) return;
+    clearTimeout(G.lp); G.mode = 'swipe'; G.row.classList.add('swiping');
+  }
+  if (G.mode === 'swipe') {
+    G.ri.style.transform = `translateX(${dx}px)`;
+    G.row.classList.toggle('l', dx < 0); G.row.classList.toggle('r', dx > 0);
+    const arm = Math.abs(dx) > G.row.offsetWidth * .33;
+    if (arm !== G.row.classList.contains('arm')) { G.row.classList.toggle('arm', arm); if (arm) vib(10); }
+  } else if (G.mode === 'drag') moveDrag();
+}, { passive: true });
+addEventListener('pointerup', () => endG(false));
+addEventListener('pointercancel', () => endG(true));
+document.addEventListener('touchmove', e => { if (G?.mode && e.cancelable) e.preventDefault(); }, { passive: false });
+document.addEventListener('contextmenu', e => { if (e.target.closest('#app .it')) e.preventDefault(); });
+
 (function start() {
   applyLang();
   const fromLink = normCode(location.hash.slice(1));
@@ -683,7 +893,7 @@ function seed() {
   code = localStorage.getItem('ut:code') || localStorage.getItem('unsertisch:code');
   if (!code) code = newCode();
   localStorage.setItem('ut:code', code);
-  store = createStore(code, WORKER, data => { Object.assign(S, data); derive(); seed(); schedule(); }, net => { S.net = net; schedule(); });
+  store = createStore(code, WORKER, data => { Object.assign(S, data); derive(); seed(); retryEnrich(); schedule(); }, net => { S.net = net; schedule(); });
   render();
   if ('serviceWorker' in navigator && location.protocol === 'https:') navigator.serviceWorker.register('sw.js').catch(() => {});
 })();

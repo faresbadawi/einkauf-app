@@ -9,7 +9,7 @@ const S = {
     nOpen: '{n} offen', allDone: 'Alles erledigt 🎉', onList: 'Steht schon auf der Liste', added: '{n} hinzugefügt',
     live: 'Live', devices: '{n} Geräte', offline: 'Offline – wird später abgeglichen', connecting: 'Verbinde …', localOnly: 'Nur auf diesem Gerät',
     // Katalog
-    searchProducts: 'Artikel suchen …', mine: 'Eigene', addCustom: '„{name}“ hinzufügen', finish: 'Fertig', finishN: 'Fertig · {n} auf der Liste', nothing: 'Nichts gefunden',
+    searchProducts: 'Artikel suchen …', mine: 'Unsere Artikel', addCustom: '„{name}“ hinzufügen', finish: 'Fertig', finishN: 'Fertig · {n} auf der Liste', nothing: 'Nichts gefunden',
     // Artikel
     qty: 'Menge', qtyPh: 'z. B. 500 g', note: 'Notiz', notePh: 'z. B. die im Angebot', where: 'Wo kaufen?', any: 'Egal',
     remembered: 'Deine Auswahl wird fürs nächste Mal gemerkt.', category: 'Kategorie', removeItem: 'Von der Liste entfernen', newStore: 'Neuer Markt',
@@ -35,6 +35,16 @@ const S = {
     more: 'Einstellungen', language: 'Sprache', household: 'Haushalt', householdSub: 'Alle mit diesem Code sehen dieselbe Liste und dieselben Rezepte – live.',
     householdLocal: 'Der Sync ist nicht eingerichtet – die Daten bleiben auf diesem Gerät.', share: 'Einladen', shareText: 'Tritt unserem Haushalt in „Unser Tisch“ bei:', copied: 'Link kopiert',
     joinPh: 'Code eingeben', join: 'Beitreten', codeLen: 'Der Code hat 10 Zeichen', newHousehold: 'Neuer Haushalt', newHouseholdQ: 'Einen neuen, leeren Haushalt starten? Den alten erreichst du nur noch mit seinem Code.',
+    oldTitle: 'Eure frühere Liste', oldBanner: '{n} Artikel – schon nach Märkten sortiert', oldGo: 'Ansehen',
+    oldSub: 'Aus eurer alten Liste habe ich {n} verschiedene Artikel gemacht (Doppelte zusammengefasst) und auf Deutsch und Arabisch benannt.',
+    oldToList: 'Alle auf die Einkaufsliste', oldToListSub: 'Danach einfach wegwischen, was ihr gerade nicht braucht',
+    oldKnown: 'Nur merken', oldKnownSub: 'Im Katalog unter „Unsere Artikel“ – mit einem Tipp auf die Liste', oldDone: '{n} Artikel gemerkt – im Katalog unter „Unsere Artikel“',
+    gestureTip: 'Tipp: Zur Seite wischen = löschen · lange drücken und ziehen = anderer Markt',
+    deleted: '„{name}“ gelöscht', undo: 'Rückgängig', dropHere: 'Hier ablegen', movedTo: 'Verschoben: {name}',
+    fx: 'Ton & Vibration', fxSub: 'Beim Abhaken', saved: 'Gespeichert',
+    aiInfo: 'Die KI liest Rezepte aus Links, übersetzt zwischen Deutsch und Arabisch und ordnet neue Artikel ein. Ein Schlüssel ist bereits auf dem Server hinterlegt.',
+    aiServer: 'Server-Schlüssel', ownKey: 'Eigener Gemini-Schlüssel (optional)', ownKeySet: 'Eigener Schlüssel',
+    ownKeyHint: 'Nur nötig, wenn die KI nicht antwortet. Kostenlos erhältlich unter', aiTest: 'Testen', aiTesting: 'KI wird getestet …', aiWorks: 'KI funktioniert',
     manageStores: 'Märkte verwalten', nStores: '{n} Märkte', ai: 'KI-Assistent', aiOk: 'Bereit', aiOff: 'Nicht eingerichtet', aiCheck: 'Wird geprüft …', aiErr: 'Nicht erreichbar'
   },
   ar: {
@@ -44,7 +54,7 @@ const S = {
     emptyList: 'القائمة فارغة', emptyListSub: 'اكتب ما ينقصكم في الأعلى، أو اختر من قائمة الأصناف.', openCatalog: 'فتح الأصناف',
     nOpen: '{n} متبقية', allDone: 'تم شراء كل شيء 🎉', onList: 'موجود في القائمة', added: 'تمت إضافة {n}',
     live: 'مباشر', devices: '{n} أجهزة', offline: 'غير متصل – ستتم المزامنة لاحقاً', connecting: 'جارٍ الاتصال …', localOnly: 'على هذا الجهاز فقط',
-    searchProducts: 'ابحث عن صنف …', mine: 'أصنافي', addCustom: 'إضافة «{name}»', finish: 'تم', finishN: 'تم · {n} في القائمة', nothing: 'لا توجد نتائج',
+    searchProducts: 'ابحث عن صنف …', mine: 'أصنافنا', addCustom: 'إضافة «{name}»', finish: 'تم', finishN: 'تم · {n} في القائمة', nothing: 'لا توجد نتائج',
     qty: 'الكمية', qtyPh: 'مثلاً 500 غ', note: 'ملاحظة', notePh: 'مثلاً النوع الذي عليه عرض', where: 'من أين نشتريه؟', any: 'أي متجر',
     remembered: 'سيتم تذكّر اختيارك للمرة القادمة.', category: 'الفئة', removeItem: 'حذف من القائمة', newStore: 'متجر جديد',
     stores: 'المتاجر', storesSub: 'حدّدوا أين تتسوقون. يمكن ربط كل صنف بمتجر.', storeName: 'الاسم', storeNamePh: 'مثلاً Lidl',
@@ -65,6 +75,16 @@ const S = {
     more: 'الإعدادات', language: 'اللغة', household: 'المنزل', householdSub: 'كل من لديه هذا الرمز يرى نفس القائمة ونفس الوصفات – مباشرةً.',
     householdLocal: 'المزامنة غير مُعدّة – تبقى البيانات على هذا الجهاز.', share: 'دعوة', shareText: 'انضم إلى منزلنا في «سفرتنا»:', copied: 'تم نسخ الرابط',
     joinPh: 'أدخل الرمز', join: 'انضمام', codeLen: 'الرمز مكوّن من 10 خانات', newHousehold: 'منزل جديد', newHouseholdQ: 'بدء منزل جديد فارغ؟ يمكن الوصول إلى القديم فقط عبر رمزه.',
+    oldTitle: 'قائمتكم السابقة', oldBanner: '{n} صنفاً – مرتبة حسب المتاجر', oldGo: 'عرض',
+    oldSub: 'جمعتُ من قائمتكم القديمة {n} صنفاً مختلفاً (بعد حذف المكرر) وسمّيتها بالعربية والألمانية.',
+    oldToList: 'إضافة الكل إلى القائمة', oldToListSub: 'ثم اسحب جانباً ما لا تحتاجونه الآن',
+    oldKnown: 'حفظ فقط', oldKnownSub: 'في الأصناف تحت «أصنافنا» – بلمسة إلى القائمة', oldDone: 'تم حفظ {n} صنفاً – في الأصناف تحت «أصنافنا»',
+    gestureTip: 'نصيحة: اسحب جانباً للحذف · اضغط مطولاً واسحب لنقله إلى متجر آخر',
+    deleted: 'تم حذف «{name}»', undo: 'تراجع', dropHere: 'أفلته هنا', movedTo: 'نُقل إلى: {name}',
+    fx: 'الصوت والاهتزاز', fxSub: 'عند وضع علامة', saved: 'تم الحفظ',
+    aiInfo: 'يقرأ الذكاء الاصطناعي الوصفات من الروابط، ويترجم بين العربية والألمانية، ويصنّف الأصناف الجديدة. يوجد مفتاح محفوظ على الخادم.',
+    aiServer: 'مفتاح الخادم', ownKey: 'مفتاح Gemini خاص (اختياري)', ownKeySet: 'مفتاح خاص',
+    ownKeyHint: 'مطلوب فقط إذا لم يستجب الذكاء الاصطناعي. مجاني من', aiTest: 'اختبار', aiTesting: 'جارٍ اختبار الذكاء الاصطناعي …', aiWorks: 'الذكاء الاصطناعي يعمل',
     manageStores: 'إدارة المتاجر', nStores: '{n} متاجر', ai: 'المساعد الذكي', aiOk: 'جاهز', aiOff: 'غير مُعدّ', aiCheck: 'جارٍ الفحص …', aiErr: 'تعذّر الوصول'
   }
 };

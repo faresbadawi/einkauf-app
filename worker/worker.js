@@ -2,7 +2,9 @@
 //  1) Live-Sync:  wss://…/sync/<HAUSHALTSCODE>  (ein Durable Object pro Haushalt, alle Geräte sehen Änderungen sofort)
 //  2) KI (Gemini): Rezept aus Link oder Text lesen/übersetzen, Artikel einordnen und DE/AR benennen
 // Geheimnis (nicht im Code!): GEMINI_API_KEY  – per `wrangler secret put GEMINI_API_KEY` oder im Cloudflare-Dashboard.
-const MODELS = ['gemini-flash-latest', 'gemini-2.5-flash', 'gemini-flash-lite-latest', 'gemini-2.0-flash'];
+// Reihenfolge der Modelle: ist eines überlastet, wird nach kurzer Wartezeit das nächste versucht
+const FAST = ['gemini-flash-lite-latest', 'gemini-2.5-flash-lite', 'gemini-2.0-flash', 'gemini-flash-latest'];
+const SMART = ['gemini-2.5-flash', 'gemini-flash-latest', 'gemini-flash-lite-latest', 'gemini-2.0-flash'];
 const MAX_HTML = 2_500_000, MAX_TEXT = 25_000;
 const RCATS = ['main', 'salad', 'soup', 'breakfast', 'dessert'];
 const ICATS = ['obst', 'gemuese', 'kraeuter', 'milch', 'fleisch', 'brot', 'vorrat', 'konserven', 'gewuerze', 'backen', 'fruehstueck', 'snacks', 'getraenke', 'tk', 'orient', 'drogerie', 'haushalt', 'baby', 'sonst'];
@@ -38,7 +40,7 @@ export default {
     const origin = req.headers.get('Origin') || '';
     const allowed = (env.ALLOWED_ORIGINS || '').split(',').map(s => s.trim()).filter(Boolean);
     const okOrigin = !allowed.length || !origin || allowed.includes(origin) || /^https?:\/\/(localhost|127\.0\.0\.1|192\.168\.\d+\.\d+)(:\d+)?$/.test(origin);
-    const cors = { 'Access-Control-Allow-Origin': okOrigin ? (origin || '*') : 'null', 'Access-Control-Allow-Methods': 'GET, POST, OPTIONS', 'Access-Control-Allow-Headers': 'Content-Type', 'Vary': 'Origin' };
+    const cors = { 'Access-Control-Allow-Origin': okOrigin ? (origin || '*') : 'null', 'Access-Control-Allow-Methods': 'GET, POST, OPTIONS', 'Access-Control-Allow-Headers': 'Content-Type, X-Gemini-Key', 'Vary': 'Origin' };
     if (req.method === 'OPTIONS') return new Response(null, { headers: cors });
     if (!okOrigin) return json({ error: 'Origin nicht erlaubt' }, 403, cors);
 
@@ -47,26 +49,29 @@ export default {
       if (!/^[A-Z0-9]{10}$/.test(code)) return json({ error: 'Ungültiger Code' }, 400, cors);
       return env.HOUSEHOLD.get(env.HOUSEHOLD.idFromName(code)).fetch(req);
     }
+    // Eigener Schlüssel aus der App (optional) hat Vorrang vor dem hinterlegten
+    const userKey = (req.headers.get('X-Gemini-Key') || '').trim();
+    const key = /^[\w-]{20,80}$/.test(userKey) ? userKey : env.GEMINI_API_KEY;
     if (url.pathname === '/health') return json({ ok: true, ai: !!env.GEMINI_API_KEY }, 200, cors);
 
     try {
       if (req.method === 'POST') {
         const body = await req.json().catch(() => ({}));
-        if (!env.GEMINI_API_KEY) return json({ error: 'KI nicht eingerichtet (GEMINI_API_KEY fehlt)' }, 501, cors);
+        if (!key) return json({ error: 'KI nicht eingerichtet (GEMINI_API_KEY fehlt)' }, 501, cors);
         if (url.pathname === '/text') {
           const text = String(body.text || '').trim();
           if (text.length < 10) return json({ error: 'Kein Text' }, 400, cors);
-          const out = await recipeAI(env.GEMINI_API_KEY, text, lang(body.lang));
+          const out = await recipeAI(key, text, lang(body.lang));
           return json({ ...out, source: 'ai' }, 200, cors);
         }
         if (url.pathname === '/items') {
           const names = [].concat(body.names || []).map(s => String(s).slice(0, 80)).filter(Boolean).slice(0, 30);
           if (!names.length) return json({ items: [] }, 200, cors);
-          return json({ items: await itemsAI(env.GEMINI_API_KEY, names) }, 200, cors);
+          return json({ items: await itemsAI(key, names) }, 200, cors);
         }
         return json({ error: 'Unbekannter Pfad' }, 404, cors);
       }
-      if (url.searchParams.get('url')) return await importUrl(url.searchParams, env, cors);
+      if (url.searchParams.get('url')) return await importUrl(url.searchParams, key, cors);
       return json({ error: 'Ungültiger Link' }, 400, cors);
     } catch (e) {
       return json({ error: 'KI-Fehler: ' + (e.message || e) }, 502, cors);
@@ -77,7 +82,7 @@ export default {
 const lang = l => (l === 'de' || l === 'ar') ? l : 'orig';
 
 /* ---------- Rezept aus Link ---------- */
-async function importUrl(q, env, cors) {
+async function importUrl(q, key, cors) {
   let target;
   try { target = new URL(q.get('url')); if (!/^https?:$/.test(target.protocol)) throw 0; } catch { return json({ error: 'Ungültiger Link' }, 400, cors); }
   const lg = lang(q.get('lang') || (q.get('de') === '1' ? 'de' : 'orig'));
@@ -95,12 +100,12 @@ async function importUrl(q, env, cors) {
   const structured = fromJsonLd(html);
   const image = structured?.image || meta(html, 'og:image');
   const base = { image: image || '', url: target.href };
-  if (!env.GEMINI_API_KEY) {
+  if (!key) {
     if (structured) return json({ ...structured, ...base, source: 'structured', warning: 'GEMINI_API_KEY fehlt' }, 200, cors);
     return json({ error: 'KI nicht eingerichtet (GEMINI_API_KEY fehlt)' }, 501, cors);
   }
   try {
-    const out = await recipeAI(env.GEMINI_API_KEY, structured ? JSON.stringify(structured) : pageText(html), lg);
+    const out = await recipeAI(key, structured ? JSON.stringify(structured) : pageText(html), lg);
     return json({ ...out, ...base, source: structured ? 'structured+ai' : 'ai' }, 200, cors);
   } catch (e) {
     if (structured) return json({ ...structured, ...base, source: 'structured', warning: 'KI-Fehler: ' + (e.message || e) }, 200, cors);
@@ -109,14 +114,14 @@ async function importUrl(q, env, cors) {
 }
 
 /* ---------- Gemini: mehrere Modelle und Wiederholung, falls eines überlastet ist ---------- */
-async function gemini(key, prompt, schema) {
+async function gemini(key, prompt, schema, models) {
   let last = 'unbekannt';
   for (let round = 0; round < 2; round++) {
-    for (const model of MODELS) {
+    for (const model of models) {
       try {
         const r = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent`, {
-          method: 'POST', headers: { 'Content-Type': 'application/json', 'x-goog-api-key': key }, signal: AbortSignal.timeout(28000),
-          body: JSON.stringify({ contents: [{ parts: [{ text: prompt }] }], generationConfig: { responseMimeType: 'application/json', responseSchema: schema, temperature: 0.1 } })
+          method: 'POST', headers: { 'Content-Type': 'application/json', 'x-goog-api-key': key }, signal: AbortSignal.timeout(round ? 25000 : 12000),
+          body: JSON.stringify({ contents: [{ parts: [{ text: prompt }] }], generationConfig: { responseMimeType: 'application/json', responseSchema: schema, temperature: 0.1, ...(/2\.5/.test(model) ? { thinkingConfig: { thinkingBudget: 0 } } : {}) } })
         });
         if (r.ok) {
           const d = await r.json();
@@ -125,7 +130,7 @@ async function gemini(key, prompt, schema) {
           last = `${model}: leere Antwort`;
         } else {
           last = `${model} ${r.status}: ${(await r.text()).slice(0, 160)}`;
-          if ([400, 401, 403].includes(r.status) && /API key|API_KEY|permission/i.test(last)) throw Object.assign(new Error(last), { fatal: true });
+          if ([400, 401, 403].includes(r.status) && /API key|API_KEY|permission|PERMISSION/.test(last)) throw Object.assign(new Error(last), { fatal: true });
         }
       } catch (e) { if (e.fatal) throw e; last = `${model}: ${e.message || e}`; }
     }
@@ -151,7 +156,7 @@ async function recipeAI(key, input, lg) {
 
 SOURCE:
 ${input.slice(0, MAX_TEXT)}`;
-  const out = await gemini(key, prompt, RECIPE_SCHEMA);
+  const out = await gemini(key, prompt, RECIPE_SCHEMA, SMART);
   if (!out.title) throw new Error('Kein Rezept gefunden');
   return out;
 }
@@ -165,7 +170,7 @@ async function itemsAI(key, names) {
 - emoji: one fitting emoji
 Entries:
 ${names.map(n => '- ' + n).join('\n')}`;
-  const out = await gemini(key, prompt, ITEMS_SCHEMA);
+  const out = await gemini(key, prompt, ITEMS_SCHEMA, FAST);
   return Array.isArray(out) ? out : [];
 }
 
