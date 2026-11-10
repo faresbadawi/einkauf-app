@@ -740,6 +740,7 @@ function importSheet(mode, val = '', error = '') {
   const draw = () => show(`${head(t(mode === 'link' ? 'fromLink' : 'fromText'), t(mode === 'link' ? 'fromLinkSub' : 'fromTextSub'))}
     ${mode === 'link' ? `<input class="field" id="imp" type="url" inputmode="url" dir="ltr" placeholder="${t('linkPh')}" value="${esc(val)}" autocomplete="off">`
       : `<textarea class="field tall" id="imp" dir="auto" placeholder="${t('textPh')}">${esc(val)}</textarea>`}
+    ${mode === 'link' ? `<p class="hint ytHint"><span class="yt">▶</span>${t('ytHint')}</p>` : ''}
     <label class="lb">${t('recipeLang')}</label>
     <div class="seg">${LANG_OPTS().map(([k, l]) => `<button data-lg="${k}" class="${lg === k ? 'on' : ''}">${l}</button>`).join('')}</div>
     ${error ? `<div class="err"><b>${t('aiFail')}</b><span dir="auto">${esc(error)}</span></div>` : ''}
@@ -752,7 +753,8 @@ function importSheet(mode, val = '', error = '') {
     if (x !== 'go') return;
     val = $('#imp').value.trim(); if (!val) return $('#imp').focus();
     if (mode === 'link' && !/^https?:\/\//i.test(val)) val = 'https://' + val;
-    busy(t('aiWorking'));
+    const isYT = mode === 'link' && /(?:youtube\.com|youtu\.be)\//i.test(val);
+    busy(isYT ? t('aiVideo') : t('aiWorking'));
     try {
       const d = mode === 'link' ? await ai('', null, `?url=${encodeURIComponent(val)}&lang=${lg}`) : await ai('text', { text: val, lang: lg });
       if (!dlg.open) return;
@@ -1256,6 +1258,9 @@ document.addEventListener('contextmenu', e => { if (e.target.closest('#app .it, 
   store = createStore(code, WORKER, data => { Object.assign(S, data); derive(); seed(); migrate(); retryEnrich(); schedule(); }, net => { S.net = net; schedule(); });
   render();
   if (sharedR) setTimeout(() => openShared(sharedR), 300);
+  const qs = new URLSearchParams(location.search), inUrl = (qs.get('url') || qs.get('text') || qs.get('title') || '').match(/https?:\/\/\S+/)?.[0];
+  if (qs.has('url') || qs.has('text')) history.replaceState(null, '', location.pathname);
+  if (inUrl) setTimeout(() => { S.tab = 'recipes'; render(); importSheet('link', inUrl); }, 300);
   if (sessionStorage.getItem('ut:joined')) { sessionStorage.removeItem('ut:joined'); setTimeout(() => toast(t('joined', { code: fmtCode(code) })), 400); }
   if ('serviceWorker' in navigator && location.protocol === 'https:') navigator.serviceWorker.register('sw.js').catch(() => {});
 })();

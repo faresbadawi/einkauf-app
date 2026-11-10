@@ -86,6 +86,8 @@ async function importUrl(q, key, cors) {
   let target;
   try { target = new URL(q.get('url')); if (!/^https?:$/.test(target.protocol)) throw 0; } catch { return json({ error: 'Ungültiger Link' }, 400, cors); }
   const lg = lang(q.get('lang') || (q.get('de') === '1' ? 'de' : 'orig'));
+  const yt = ytId(target);
+  if (yt) return importYouTube(yt, key, lg, cors);
 
   let html;
   try {
@@ -117,7 +119,7 @@ async function importUrl(q, key, cors) {
    Ein Modell wird gefragt; antwortet es nicht innerhalb von HEDGE ms (oder schlägt fehl), startet parallel das nächste.
    Die erste brauchbare Antwort gewinnt, die anderen werden abgebrochen. So bremst ein überlastetes Modell nicht mehr alles aus. */
 const TOTAL = 40000;
-function gemini(key, prompt, schema, models, HEDGE = 2500) {
+function gemini(key, prompt, schema, models, HEDGE = 2500, opt = {}) {
   const t0 = Date.now(), ctrls = [], errs = [];
   let next = 0, running = 0, done = false, timer = 0;
   return new Promise((resolve, reject) => {
@@ -135,8 +137,8 @@ function gemini(key, prompt, schema, models, HEDGE = 2500) {
     };
     const call = async (model, signal) => {
       const r = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent`, {
-        method: 'POST', headers: { 'Content-Type': 'application/json', 'x-goog-api-key': key }, signal: AbortSignal.any([signal, AbortSignal.timeout(TOTAL)]),
-        body: JSON.stringify({ contents: [{ parts: [{ text: prompt }] }], generationConfig: { responseMimeType: 'application/json', responseSchema: schema, temperature: 0.1, ...(/2\.5/.test(model) ? { thinkingConfig: { thinkingBudget: 0 } } : {}) } })
+        method: 'POST', headers: { 'Content-Type': 'application/json', 'x-goog-api-key': key }, signal: AbortSignal.any([signal, AbortSignal.timeout(opt.timeout || TOTAL)]),
+        body: JSON.stringify({ contents: [{ parts: [...(opt.parts || []), { text: prompt }] }], generationConfig: { responseMimeType: 'application/json', responseSchema: schema, temperature: 0.1, ...(opt.media ? { mediaResolution: opt.media } : {}), ...(/2\.5/.test(model) ? { thinkingConfig: { thinkingBudget: 0 } } : {}) } })
       });
       if (!r.ok) {
         const msg = `${r.status}: ${(await r.text()).slice(0, 160)}`;
@@ -158,18 +160,66 @@ const LANG_RULE = {
   orig: 'Keep the original language of the source. Abbreviate common units (e.g. g, kg, ml, l, EL, TL in German).'
 };
 
-async function recipeAI(key, input, lg) {
+/* ---------- YouTube ----------
+   1) Titel, Beschreibung und Transkript von der Videoseite lesen → Rezept daraus machen (schnell)
+   2) Steht dort kein Rezept: Gemini schaut sich das Video selbst an (langsamer, ca. 20–60 s) */
+function ytId(u) {
+  const h = u.hostname.replace(/^(www|m|music)\./, '');
+  if (h === 'youtu.be') return u.pathname.slice(1, 12);
+  if (h !== 'youtube.com' && h !== 'youtube-nocookie.com') return '';
+  return u.searchParams.get('v') || (u.pathname.match(/^\/(?:shorts|embed|live|v)\/([\w-]{11})/) || [])[1] || '';
+}
+const YT_H = { 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0 Safari/537.36', 'Accept-Language': 'de,en;q=0.8,ar;q=0.6', Cookie: 'CONSENT=YES+cb; SOCS=CAI' };
+async function ytInfo(id) {
+  const out = { title: '', desc: '', transcript: '' };
+  try {
+    const html = await (await fetch(`https://www.youtube.com/watch?v=${id}&hl=de`, { headers: YT_H, signal: AbortSignal.timeout(12000) })).text();
+    try { const pr = JSON.parse(html.match(/ytInitialPlayerResponse\s*=\s*(\{.+?\})\s*;\s*(?:var\s|<\/script>)/s)[1]); out.title = pr.videoDetails?.title || ''; out.desc = pr.videoDetails?.shortDescription || ''; } catch {}
+    const params = html.match(/"getTranscriptEndpoint":\{"params":"([^"]+)"/)?.[1], ver = html.match(/"INNERTUBE_CLIENT_VERSION":"([^"]+)"/)?.[1];
+    if (params && ver) {
+      const r = await fetch('https://www.youtube.com/youtubei/v1/get_transcript?prettyPrint=false', { method: 'POST', headers: { ...YT_H, 'Content-Type': 'application/json' }, signal: AbortSignal.timeout(12000),
+        body: JSON.stringify({ context: { client: { clientName: 'WEB', clientVersion: ver, hl: 'de' } }, params }) });
+      if (r.ok) {
+        const segs = [];
+        const walk = n => { if (Array.isArray(n)) n.forEach(walk); else if (n && typeof n === 'object') { if (n.transcriptSegmentRenderer) segs.push((n.transcriptSegmentRenderer.snippet?.runs || []).map(x => x.text).join('')); else Object.values(n).forEach(walk); } };
+        walk(await r.json()); out.transcript = segs.join(' ').replace(/\s+/g, ' ').trim();
+      }
+    }
+  } catch {}
+  if (!out.title) { try { out.title = (await (await fetch(`https://www.youtube.com/oembed?format=json&url=https://www.youtube.com/watch?v=${id}`, { signal: AbortSignal.timeout(6000) })).json()).title || ''; } catch {} }
+  return out;
+}
+async function importYouTube(id, key, lg, cors) {
+  if (!key) return json({ error: 'KI nicht eingerichtet (GEMINI_API_KEY fehlt)' }, 501, cors);
+  const base = { image: `https://i.ytimg.com/vi/${id}/hqdefault.jpg`, url: `https://www.youtube.com/watch?v=${id}` };
+  const info = await ytInfo(id);
+  let firstErr = '';
+  if (info.desc.length + info.transcript.length > 80) {
+    try {
+      const text = `YouTube video: ${info.title}\n\nVIDEO DESCRIPTION:\n${info.desc.slice(0, 8000)}\n\nTRANSCRIPT (auto-generated, may contain recognition errors; amounts may only be spoken):\n${info.transcript.slice(0, 16000)}`;
+      const out = await recipeAI(key, text, lg, 'The source is a cooking video. Prefer an ingredient list from the description; otherwise collect ingredients and amounts from the transcript. Write clean steps from what is done in the video. Ignore sponsoring, links and greetings.');
+      return json({ ...out, ...base, source: info.transcript ? 'youtube-transcript' : 'youtube-description' }, 200, cors);
+    } catch (e) { firstErr = e.message || String(e); }
+  }
+  try { // Video direkt von Gemini ansehen lassen
+    const out = await recipeAI(key, `Watch the attached cooking video${info.title ? ` ("${info.title}")` : ''} and write down its recipe.`, lg, 'Take amounts from what is said or shown; estimate sensibly only if the video clearly shows the amount.',
+      { parts: [{ file_data: { file_uri: base.url } }], media: 'MEDIA_RESOLUTION_LOW', timeout: 90000 });
+    return json({ ...out, ...base, source: 'youtube-video' }, 200, cors);
+  } catch (e) { return json({ error: `Aus dem Video ließ sich kein Rezept lesen (${(e.message || e) || firstErr})` }, 502, cors); }
+}
+
+async function recipeAI(key, input, lg, extra = '', opt = null) {
   const prompt = `You get the text of a web page, a pasted recipe, or already extracted recipe data. Extract exactly ONE cooking recipe and return JSON.
 - ingredients: one ingredient per entry in the format "<amount> <unit> <ingredient>", e.g. "500 g Nudeln", "2 EL Olivenöl", "1/2 Zitrone", "3 Eier". Amount as a number (decimals or simple fractions, no ranges). If there is no amount, give just the ingredient name. Keep entries short: drop preparation notes such as "finely chopped".
 - steps: numbered steps separated by line breaks ("1. …\\n2. …").
 - time: total time in minutes (0 if unknown). servings: number of persons (0 if unknown).
 - category: main, starter, salad, soup, breakfast or dessert. emoji: one fitting food emoji.
 - ${LANG_RULE[lg]}
-- Do not invent anything. Ignore ads, comments and navigation. If there is no recipe, return an empty title.
+- Do not invent anything. Ignore ads, comments and navigation. If there is no recipe, return an empty title.${extra ? '\n- ' + extra : ''}
 
 SOURCE:
 ${input.slice(0, MAX_TEXT)}`;
-  const { out, model, ms } = await gemini(key, prompt, RECIPE_SCHEMA, SMART, 7000);
+  const { out, model, ms } = await (opt ? gemini(key, prompt, RECIPE_SCHEMA, ['gemini-2.5-flash', 'gemini-flash-latest'], 60000, opt) : gemini(key, prompt, RECIPE_SCHEMA, SMART, 7000));
   out._ai = `${model} ${ms}ms`;
   if (!out.title) throw new Error('Kein Rezept gefunden');
   return out;

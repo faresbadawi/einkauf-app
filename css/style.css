@@ -511,3 +511,5 @@ html:not([lang=ar]) .cdiv{text-transform:uppercase;letter-spacing:.04em}
 .emo{width:42px;height:42px}
 @media (min-width:960px){.banner.inst{max-width:760px}}
 @media (min-width:960px){.glassRow{top:16px}}
+.ytHint{display:flex;gap:8px;align-items:flex-start;font-size:.84rem}
+.ytHint .yt{flex:none;width:22px;height:16px;border-radius:5px;background:#e62117;color:#fff;font-size:.55rem;display:grid;place-items:center;margin-top:2px}
