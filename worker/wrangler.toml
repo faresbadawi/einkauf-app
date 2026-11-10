@@ -1,0 +1,14 @@
+# Deploy:  cd worker && npx wrangler deploy
+name = "lucky-glade-43b0"
+main = "worker.js"
+compatibility_date = "2025-09-01"
+workers_dev = true
+keep_vars = true
+
+[[durable_objects.bindings]]
+name = "HOUSEHOLD"
+class_name = "Household"
+
+[[migrations]]
+tag = "v1"
+new_sqlite_classes = ["Household"]

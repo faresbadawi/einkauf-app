@@ -1,13 +1,13 @@
 {
   "name": "Unser Tisch",
   "short_name": "Unser Tisch",
-  "description": "Gemeinsame Einkaufsliste und Rezepte",
+  "description": "Gemeinsame Einkaufsliste und Rezepte – Deutsch & Arabisch",
   "start_url": "./",
   "scope": "./",
   "display": "standalone",
   "orientation": "any",
-  "background_color": "#16120d",
-  "theme_color": "#16120d",
+  "background_color": "#f6f5f1",
+  "theme_color": "#f6f5f1",
   "lang": "de",
   "icons": [
     {"src": "icons/icon-192.png", "sizes": "192x192", "type": "image/png"},

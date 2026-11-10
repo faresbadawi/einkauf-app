@@ -1,4 +1,3 @@
-// Adresse deines Cloudflare Workers für den Rezept-Import (mit KI), z. B. "https://unser-tisch.DEIN-NAME.workers.dev/"
-export const importUrl = "https://lucky-glade-43b0.stretching-reminder-worker.workers.dev/";
-// Optional: nur Weiterleitung ohne KI, Format "https://NAME.workers.dev/?url="
-export const proxyUrl = "";
+// Adresse deines Cloudflare Workers (Live-Sync zwischen den Geräten + KI für Rezepte und Artikel).
+// Leer lassen = App läuft nur lokal auf diesem Gerät, ohne Teilen und ohne KI.
+export const workerUrl = "https://lucky-glade-43b0.stretching-reminder-worker.workers.dev/";
