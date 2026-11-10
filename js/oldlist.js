@@ -73,7 +73,7 @@ a|Kunafa|كنافة|orient|🍮
 a|Schokoküsse (Tarabish)|طرابيش|snacks|🍫
 a|Teigblätter|رقائق العجين|tk|🥟
 a|Mantı (Shishbarak)|شيشبرك تركي|tk|🥟
-a|Gelatine|جيلاتين|backen|🍮
+a|Halal-Gelatine|جيلاتين حلال
 a|Ka'ak-Formen|قوالب كعك|haushalt|🍪
 s|Gurken|خيار
 s|Kopfsalat|خس

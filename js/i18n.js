@@ -1,4 +1,4 @@
-// Alle Texte der App auf Deutsch und Arabisch.
+// Alle Texte der App auf Deutsch, Arabisch und Englisch.
 const S = {
   de: {
     app: 'Unser Tisch', tabList: 'Einkauf', tabRecipes: 'Rezepte', tabPlan: 'Plan', tabMore: 'Mehr',
@@ -20,7 +20,7 @@ const S = {
     // Rezepte
     recipes: 'Rezepte', searchRecipes: 'Rezepte suchen …', favs: 'Favoriten', rc_all: 'Alle', rc_main: 'Hauptgerichte', rc_salad: 'Salate', rc_soup: 'Suppen', rc_breakfast: 'Frühstück', rc_dessert: 'Desserts',
     noRecipes: 'Noch keine Rezepte', noRecipesSub: 'Füge ein Rezept per Link hinzu – die KI liest Zutaten und Schritte für dich aus.', loadDemo: 'Beispielrezepte laden', removeDemo: 'Beispielrezepte entfernen',
-    demoSub: '6 Rezepte zum Ausprobieren', newRecipe: 'Neues Rezept', fromLink: 'Aus einem Link', fromLinkSub: 'Die KI liest das Rezept von der Webseite',
+    demoSub: '7 Rezepte zum Ausprobieren', newRecipe: 'Neues Rezept', fromLink: 'Aus einem Link', fromLinkSub: 'Die KI liest das Rezept von der Webseite',
     fromText: 'Text einfügen', fromTextSub: 'Kopierten Text oder Notizen in ein Rezept verwandeln', manual: 'Selbst schreiben', manualSub: 'Zutaten und Schritte von Hand eintragen',
     linkPh: 'https://…', textPh: 'Rezepttext hier einfügen …', recipeLang: 'Sprache des Rezepts', original: 'Original', readRecipe: 'Rezept lesen', aiWorking: 'Die KI liest das Rezept …',
     aiFail: 'Das hat nicht geklappt', aiNoWorker: 'Die KI ist nicht eingerichtet.', checkRecipe: 'Rezept gelesen – bitte kurz prüfen', aiPartial: 'Ohne KI gelesen – bitte genauer prüfen',
@@ -32,7 +32,7 @@ const S = {
     plan: 'Wochenplan', thisWeek: 'diese Woche', slot0: 'Mo – Di', slot1: 'Mi – Do', slot2: 'Fr – So', pickDish: 'Gericht auswählen', dishFor: 'Gericht für {slot}', clearSlot: 'Leeren',
     suggest: 'Neu vorschlagen', suggested: 'Neuer Vorschlag ✨', weekShop: 'Zutaten der Woche', planEmpty: 'Wähle Gerichte aus, dann siehst du hier die Zutaten der Woche.', needRecipes: 'Lege zuerst Rezepte an', free: 'frei',
     // Mehr
-    more: 'Einstellungen', language: 'Sprache', household: 'Haushalt', householdSub: 'Alle mit diesem Code sehen dieselbe Liste und dieselben Rezepte – live.',
+    more: 'Einstellungen', language: 'Sprache', household: 'Haushalt', householdSub: 'Alle mit diesem Code sehen dieselbe Liste und dieselben Rezepte – sofort.',
     householdLocal: 'Der Sync ist nicht eingerichtet – die Daten bleiben auf diesem Gerät.', share: 'Einladen', shareText: 'Tritt unserem Haushalt in „Unser Tisch“ bei:', copied: 'Link kopiert',
     joinPh: 'Code eingeben', join: 'Beitreten', codeLen: 'Der Code hat 10 Zeichen', newHousehold: 'Neuer Haushalt', newHouseholdQ: 'Einen neuen, leeren Haushalt starten? Den alten erreichst du nur noch mit seinem Code.',
     oldTitle: 'Eure frühere Liste', oldBanner: '{n} Artikel – schon nach Märkten sortiert', oldGo: 'Ansehen',
@@ -50,13 +50,22 @@ const S = {
     codeLabel: 'Haushaltscode', qrHint: 'Andere scannen diesen Code einfach mit der Handy-Kamera – fertig.', scan: 'Scannen',
     scanTitle: 'QR-Code scannen', scanSub: 'Halte die Kamera auf den Code des anderen Geräts', scanWait: 'Kamera wird gestartet …', scanHint: 'Suche nach einem QR-Code …',
     scanNoCode: 'Das ist kein Haushalts-Code', camErr: 'Keine Kamera verfügbar. Erlaube den Zugriff – oder gib den Code unten ein.',
-    joinQ: 'Diesem Haushalt beitreten?', joinInfo: 'Danach siehst du dieselbe Liste, dieselben Rezepte und denselben Plan – live.', joined: 'Willkommen im Haushalt {code} 👋', alreadyIn: 'Du bist schon in diesem Haushalt',
-    mains: 'Hauptgerichte', extras: 'Dazu', extrasHint: 'Füge Salat, Dessert, Suppe oder Frühstück hinzu:', removeCourse: 'Entfernen', otherRecipes: 'Andere Rezepte',
+    joinQ: 'Diesem Haushalt beitreten?', joinInfo: 'Danach siehst du dieselbe Liste, dieselben Rezepte und denselben Plan – sofort.', joined: 'Willkommen im Haushalt {code} 👋', alreadyIn: 'Du bist schon in diesem Haushalt',
+    mains: 'Hauptgerichte', extras: 'Dazu', extrasHint: 'Füge Vorspeise, Salat, Dessert, Suppe oder Frühstück hinzu:', removeCourse: 'Entfernen', otherRecipes: 'Andere Rezepte',
     noneOfCourse: 'Noch keine Rezepte in „{c}“ – wähle ein anderes oder lege eins an.',
     c_main: 'Hauptgericht', c_salad: 'Salat', c_dessert: 'Dessert', c_soup: 'Suppe', c_breakfast: 'Frühstück',
     bulk: 'Mehrere Links', bulkSub: 'Viele Rezepte auf einmal – Links einfach untereinander einfügen', bulkPh: 'https://…\nhttps://…\nhttps://…',
     bulkGo: 'Alle einlesen', bulkNone: 'Keine Links gefunden', bulkRun: '{n} von {all} gelesen …', bulkDone: 'Fertig – {n} Rezepte gespeichert', bulkShow: 'Rezepte ansehen', bulkSkip: 'schon vorhanden',
-    sort: 'Sortieren', sort_az: 'A – Z', sort_new: 'Neueste', sort_fast: 'Schnellste'
+    sort: 'Sortieren', sort_az: 'A – Z', sort_new: 'Neueste', sort_fast: 'Schnellste',
+    // Version 4
+    peers: '{n} Personen verbunden', snd: 'Töne & Vibration', sndSub: 'Wähle, wann es klingt oder vibriert',
+    snd_check: 'Abhaken', snd_tap: 'Tippen', snd_del: 'Löschen', snd_move: 'Verschieben', snd_vib: 'Vibration', snd_off: 'aus',
+    doneTrip: 'In diesem Einkauf gekauft', finishTrip: 'Einkauf abschließen', finishTripSub: 'Gekaufte Artikel kommen in den Verlauf – die Liste ist wieder frisch.',
+    tripDone: 'Einkauf abgeschlossen · {n} Artikel', history: 'Frühere Einkäufe', noHistory: 'Noch keine abgeschlossenen Einkäufe.', again: 'Wieder auf die Liste', nItems: '{n} Artikel',
+    assign: 'Märkte zuordnen', assignHint: 'Markt oben wählen, dann Artikel antippen – das wird für immer gemerkt.', assignDone: 'Fertig zugeordnet', assignedTo: '→ {name}',
+    shareRecipe: 'Teilen', sharedRecipe: 'Ein geteiltes Rezept', sharedFrom: 'Jemand hat dir dieses Rezept geschickt.', importShared: 'Zu unseren Rezepten', recipeSaved: 'Rezept gespeichert', shareRecipeText: 'Ein Rezept für dich:', shareBad: 'Der Link ist unvollständig.',
+    recipeActions: 'Rezept', install: 'App installieren', installSub: 'Auf den Startbildschirm – öffnet sich wie eine richtige App', installIos: 'Tippe in Safari unten auf „Teilen“ <b>⎙</b> und dann auf <b>„Zum Home-Bildschirm“</b>.', installAndroid: 'Öffne das Browser-Menü <b>⋮</b> und tippe auf <b>„App installieren“</b> bzw. <b>„Zum Startbildschirm hinzufügen“</b>.', installed: 'App ist installiert ✓',
+    langSub: 'Sprache der App', rc_starter: 'Vorspeisen', c_starter: 'Vorspeise', palette: 'Mehr Farben & Symbole'
   },
   ar: {
     app: 'سفرتنا', tabList: 'المشتريات', tabRecipes: 'الوصفات', tabPlan: 'الخطة', tabMore: 'المزيد',
@@ -73,7 +82,7 @@ const S = {
     delStoreQ: 'حذف «{name}»؟ ستبقى الأصناف في القائمة.', store_arab: 'المتجر العربي', store_super: 'السوبرماركت', store_dm: 'dm', store_ross: 'Rossmann',
     recipes: 'الوصفات', searchRecipes: 'ابحث في الوصفات …', favs: 'المفضلة', rc_all: 'الكل', rc_main: 'أطباق رئيسية', rc_salad: 'سلطات', rc_soup: 'شوربات', rc_breakfast: 'فطور', rc_dessert: 'حلويات',
     noRecipes: 'لا توجد وصفات بعد', noRecipesSub: 'أضف وصفة عبر رابط – يقرأ الذكاء الاصطناعي المكونات والخطوات عنك.', loadDemo: 'تحميل وصفات تجريبية', removeDemo: 'حذف الوصفات التجريبية',
-    demoSub: '6 وصفات للتجربة', newRecipe: 'وصفة جديدة', fromLink: 'من رابط', fromLinkSub: 'يقرأ الذكاء الاصطناعي الوصفة من الموقع',
+    demoSub: '7 وصفات للتجربة', newRecipe: 'وصفة جديدة', fromLink: 'من رابط', fromLinkSub: 'يقرأ الذكاء الاصطناعي الوصفة من الموقع',
     fromText: 'لصق نص', fromTextSub: 'تحويل نص منسوخ أو ملاحظات إلى وصفة', manual: 'كتابة يدوية', manualSub: 'إدخال المكونات والخطوات بنفسك',
     linkPh: 'https://…', textPh: 'الصق نص الوصفة هنا …', recipeLang: 'لغة الوصفة', original: 'الأصلية', readRecipe: 'قراءة الوصفة', aiWorking: 'الذكاء الاصطناعي يقرأ الوصفة …',
     aiFail: 'لم تنجح العملية', aiNoWorker: 'الذكاء الاصطناعي غير مُعدّ.', checkRecipe: 'تمت قراءة الوصفة – يرجى المراجعة', aiPartial: 'تمت القراءة بدون ذكاء اصطناعي – يرجى التدقيق',
@@ -101,21 +110,89 @@ const S = {
     scanTitle: 'مسح رمز QR', scanSub: 'وجّه الكاميرا نحو الرمز على الجهاز الآخر', scanWait: 'جارٍ تشغيل الكاميرا …', scanHint: 'جارٍ البحث عن رمز QR …',
     scanNoCode: 'هذا ليس رمز منزل', camErr: 'الكاميرا غير متاحة. اسمح بالوصول إليها – أو أدخل الرمز في الأسفل.',
     joinQ: 'الانضمام إلى هذا المنزل؟', joinInfo: 'بعدها سترى نفس القائمة ونفس الوصفات ونفس الخطة – مباشرةً.', joined: 'أهلاً بك في المنزل {code} 👋', alreadyIn: 'أنت في هذا المنزل بالفعل',
-    mains: 'الأطباق الرئيسية', extras: 'إضافات', extrasHint: 'أضف سلطة أو حلوى أو شوربة أو فطوراً:', removeCourse: 'إزالة', otherRecipes: 'وصفات أخرى',
+    mains: 'الأطباق الرئيسية', extras: 'إضافات', extrasHint: 'أضف مقبلات أو سلطة أو حلوى أو شوربة أو فطوراً:', removeCourse: 'إزالة', otherRecipes: 'وصفات أخرى',
     noneOfCourse: 'لا توجد وصفات في «{c}» بعد – اختر غيرها أو أضف وصفة.',
     c_main: 'طبق رئيسي', c_salad: 'سلطة', c_dessert: 'حلوى', c_soup: 'شوربة', c_breakfast: 'فطور',
     bulk: 'عدة روابط', bulkSub: 'وصفات كثيرة دفعة واحدة – الصق الروابط كل رابط في سطر', bulkPh: 'https://…\nhttps://…\nhttps://…',
     bulkGo: 'قراءة الكل', bulkNone: 'لم يتم العثور على روابط', bulkRun: 'تمت قراءة {n} من {all} …', bulkDone: 'تم – حُفظت {n} وصفات', bulkShow: 'عرض الوصفات', bulkSkip: 'موجودة مسبقاً',
-    sort: 'ترتيب', sort_az: 'أ – ي', sort_new: 'الأحدث', sort_fast: 'الأسرع'
+    sort: 'ترتيب', sort_az: 'أ – ي', sort_new: 'الأحدث', sort_fast: 'الأسرع',
+    peers: '{n} أشخاص متصلون', snd: 'الأصوات والاهتزاز', sndSub: 'اختر متى يصدر صوت أو اهتزاز',
+    snd_check: 'وضع علامة', snd_tap: 'اللمس', snd_del: 'الحذف', snd_move: 'النقل', snd_vib: 'الاهتزاز', snd_off: 'متوقف',
+    doneTrip: 'تم شراؤه في هذا التسوق', finishTrip: 'إنهاء التسوق', finishTripSub: 'تنتقل الأصناف المشتراة إلى السجل – وتصبح القائمة نظيفة.',
+    tripDone: 'انتهى التسوق · {n} أصناف', history: 'مشتريات سابقة', noHistory: 'لا توجد عمليات تسوق منتهية بعد.', again: 'إلى القائمة مجدداً', nItems: '{n} أصناف',
+    assign: 'ربط الأصناف بالمتاجر', assignHint: 'اختر المتجر في الأعلى ثم المس الأصناف – سيتم حفظ ذلك دائماً.', assignDone: 'تم', assignedTo: '← {name}',
+    shareRecipe: 'مشاركة', sharedRecipe: 'وصفة مُشارَكة', sharedFrom: 'أرسل لك أحدهم هذه الوصفة.', importShared: 'إلى وصفاتنا', recipeSaved: 'تم حفظ الوصفة', shareRecipeText: 'وصفة لك:', shareBad: 'الرابط غير مكتمل.',
+    recipeActions: 'الوصفة', install: 'تثبيت التطبيق', installSub: 'على الشاشة الرئيسية – يفتح كتطبيق حقيقي', installIos: 'في Safari المس <b>«مشاركة» ⎙</b> في الأسفل ثم <b>«إضافة إلى الشاشة الرئيسية»</b>.', installAndroid: 'افتح قائمة المتصفح <b>⋮</b> ثم المس <b>«تثبيت التطبيق»</b> أو <b>«إضافة إلى الشاشة الرئيسية»</b>.', installed: 'التطبيق مثبّت ✓',
+    langSub: 'لغة التطبيق', rc_starter: 'مقبلات', c_starter: 'مقبلات', palette: 'ألوان ورموز أكثر'
+  },
+  en: {
+    app: 'Our Table', tabList: 'Shopping', tabRecipes: 'Recipes', tabPlan: 'Plan', tabMore: 'More',
+    list: 'Shopping list', addPh: 'What do we need? e.g. 2 kg tomatoes', catalog: 'Catalogue', add: 'Add',
+    all: 'All', anywhere: 'Available anywhere', noStore: 'No shop', done: 'Done', clearDone: 'Remove done items',
+    emptyList: 'The list is empty', emptyListSub: 'Type what you need above – or simply pick from the catalogue.', openCatalog: 'Open catalogue',
+    nOpen: '{n} to buy', allDone: 'All done 🎉', onList: 'Already on the list', added: '{n} added',
+    live: 'Live', devices: '{n} devices', offline: 'Offline – will sync later', connecting: 'Connecting …', localOnly: 'This device only',
+    searchProducts: 'Search items …', mine: 'Our items', addCustom: 'Add “{name}”', finish: 'Done', finishN: 'Done · {n} on the list', nothing: 'Nothing found',
+    qty: 'Quantity', qtyPh: 'e.g. 500 g', note: 'Note', notePh: 'e.g. the one on offer', where: 'Where to buy?', any: 'Anywhere',
+    remembered: 'Your choice is remembered for next time.', category: 'Category', removeItem: 'Remove from list', newStore: 'New shop',
+    stores: 'Shops', storesSub: 'Set up where you shop. Every item can be assigned to a shop.', storeName: 'Name', storeNamePh: 'e.g. Lidl',
+    symbol: 'Symbol', color: 'Colour', save: 'Save', cancel: 'Cancel', del: 'Delete', edit: 'Edit', editStore: 'Edit shop',
+    delStoreQ: 'Delete “{name}”? The items stay on the list.', store_arab: 'Arabic market', store_super: 'Supermarket', store_dm: 'dm', store_ross: 'Rossmann',
+    recipes: 'Recipes', searchRecipes: 'Search recipes …', favs: 'Favourites', rc_all: 'All', rc_main: 'Main dishes', rc_salad: 'Salads', rc_soup: 'Soups', rc_breakfast: 'Breakfast', rc_dessert: 'Desserts',
+    noRecipes: 'No recipes yet', noRecipesSub: 'Add a recipe from a link – the AI reads ingredients and steps for you.', loadDemo: 'Load sample recipes', removeDemo: 'Remove sample recipes',
+    demoSub: '7 recipes to try', newRecipe: 'New recipe', fromLink: 'From a link', fromLinkSub: 'The AI reads the recipe from the website',
+    fromText: 'Paste text', fromTextSub: 'Turn copied text or notes into a recipe', manual: 'Write it yourself', manualSub: 'Enter ingredients and steps by hand',
+    linkPh: 'https://…', textPh: 'Paste the recipe text here …', recipeLang: 'Recipe language', original: 'Original', readRecipe: 'Read recipe', aiWorking: 'The AI is reading the recipe …',
+    aiFail: 'That didn’t work', aiNoWorker: 'The AI is not set up.', checkRecipe: 'Recipe read – please check it', aiPartial: 'Read without AI – please check carefully',
+    min: 'min', persons: 'people', servings: 'Servings', ingredients: 'Ingredients', steps: 'Method', noIngredients: 'No ingredients.', noSteps: 'No method yet.',
+    toList: 'Add to shopping list', toListN: 'Add {n} ingredients to the list', original_link: 'Open original recipe', translate: 'Translate', translateTo: 'Translate into', translating: 'Translating …', translated: 'Translated',
+    delRecipeQ: 'Delete “{name}”?', editRecipe: 'Edit recipe', title: 'Title', emoji: 'Emoji', minutes: 'Minutes',
+    ingPh: 'One ingredient per line, e.g. 500 g pasta', image: 'Image link (optional)', source: 'Source (optional)', needTitle: 'Please enter a title',
+    plan: 'Weekly plan', thisWeek: 'this week', slot0: 'Mon – Tue', slot1: 'Wed – Thu', slot2: 'Fri – Sun', pickDish: 'Choose a dish', dishFor: 'Dish for {slot}', clearSlot: 'Clear',
+    suggest: 'Suggest again', suggested: 'New suggestion ✨', weekShop: 'Ingredients this week', planEmpty: 'Choose dishes and you’ll see the week’s ingredients here.', needRecipes: 'Add some recipes first', free: 'free',
+    more: 'Settings', language: 'Language', household: 'Household', householdSub: 'Everyone with this code sees the same list and recipes – instantly.',
+    householdLocal: 'Sync is not set up – data stays on this device.', share: 'Invite', shareText: 'Join our household in “Our Table”:', copied: 'Link copied',
+    joinPh: 'Enter code', join: 'Join', codeLen: 'The code has 10 characters', newHousehold: 'New household', newHouseholdQ: 'Start a new, empty household? You can only get back to the old one with its code.',
+    oldTitle: 'Your previous list', oldBanner: '{n} items – already sorted by shop', oldGo: 'View',
+    oldSub: 'From your old list I made {n} different items (duplicates merged) and named them in German and Arabic.',
+    oldToList: 'Put all on the shopping list', oldToListSub: 'Then just swipe away what you don’t need right now',
+    oldKnown: 'Just remember them', oldKnownSub: 'In the catalogue under “Our items” – one tap puts them on the list', oldDone: '{n} items remembered – in the catalogue under “Our items”',
+    gestureTip: 'Tip: swipe sideways = delete · press and hold, then drag = other shop',
+    deleted: '“{name}” deleted', undo: 'Undo', dropHere: 'Drop here', movedTo: 'Moved: {name}',
+    fx: 'Sound & vibration', fxSub: 'When tapping and ticking', saved: 'Saved',
+    aiInfo: 'The AI reads recipes from links, translates between German, Arabic and English and sorts new items. A key is already stored on the server.',
+    aiServer: 'Server key', ownKey: 'Own Gemini key (optional)', ownKeySet: 'Own key',
+    ownKeyHint: 'Only needed if the AI doesn’t respond. Free at', aiTest: 'Test', aiTesting: 'Testing the AI …', aiWorks: 'AI is working',
+    manageStores: 'Manage shops', nStores: '{n} shops', ai: 'AI assistant', aiOk: 'Ready', aiOff: 'Not set up', aiCheck: 'Checking …', aiErr: 'Not reachable',
+    codeLabel: 'Household code', qrHint: 'Others simply scan this code with their phone camera – done.', scan: 'Scan',
+    scanTitle: 'Scan QR code', scanSub: 'Point the camera at the code on the other device', scanWait: 'Starting camera …', scanHint: 'Looking for a QR code …',
+    scanNoCode: 'That is not a household code', camErr: 'No camera available. Allow access – or enter the code below.',
+    joinQ: 'Join this household?', joinInfo: 'You’ll then see the same list, recipes and plan – instantly.', joined: 'Welcome to household {code} 👋', alreadyIn: 'You are already in this household',
+    mains: 'Main dishes', extras: 'On the side', extrasHint: 'Add a starter, salad, dessert, soup or breakfast:', removeCourse: 'Remove', otherRecipes: 'Other recipes',
+    noneOfCourse: 'No recipes in “{c}” yet – choose another or add one.',
+    c_main: 'Main dish', c_salad: 'Salad', c_dessert: 'Dessert', c_soup: 'Soup', c_breakfast: 'Breakfast',
+    bulk: 'Several links', bulkSub: 'Many recipes at once – paste the links one per line', bulkPh: 'https://…\nhttps://…\nhttps://…',
+    bulkGo: 'Read all', bulkNone: 'No links found', bulkRun: '{n} of {all} read …', bulkDone: 'Done – {n} recipes saved', bulkShow: 'View recipes', bulkSkip: 'already there',
+    sort: 'Sort', sort_az: 'A – Z', sort_new: 'Newest', sort_fast: 'Quickest',
+    peers: '{n} people connected', snd: 'Sounds & vibration', sndSub: 'Choose when it sounds or vibrates',
+    snd_check: 'Ticking off', snd_tap: 'Tapping', snd_del: 'Deleting', snd_move: 'Moving', snd_vib: 'Vibration', snd_off: 'off',
+    doneTrip: 'Bought on this trip', finishTrip: 'Finish shopping', finishTripSub: 'Bought items go to the history – the list is fresh again.',
+    tripDone: 'Shopping finished · {n} items', history: 'Past shopping trips', noHistory: 'No finished shopping trips yet.', again: 'Back on the list', nItems: '{n} items',
+    assign: 'Assign to shops', assignHint: 'Pick a shop above, then tap items – it’s remembered for good.', assignDone: 'Done', assignedTo: '→ {name}',
+    shareRecipe: 'Share', sharedRecipe: 'A shared recipe', sharedFrom: 'Someone sent you this recipe.', importShared: 'Add to our recipes', recipeSaved: 'Recipe saved', shareRecipeText: 'A recipe for you:', shareBad: 'The link is incomplete.',
+    recipeActions: 'Recipe', install: 'Install app', installSub: 'On your home screen – opens like a real app', installIos: 'In Safari tap <b>“Share” ⎙</b> at the bottom, then <b>“Add to Home Screen”</b>.', installAndroid: 'Open the browser menu <b>⋮</b> and tap <b>“Install app”</b> or <b>“Add to Home screen”</b>.', installed: 'App is installed ✓',
+    langSub: 'App language', rc_starter: 'Starters', c_starter: 'Starter', palette: 'More colours & symbols'
   }
 };
 
-let lang = localStorage.getItem('ut:lang') || ((navigator.language || '').startsWith('ar') ? 'ar' : 'de');
+const NL = (navigator.language || '').slice(0, 2);
+let lang = localStorage.getItem('ut:lang') || (NL === 'ar' ? 'ar' : NL === 'de' ? 'de' : NL ? 'en' : 'de');
 export const getLang = () => lang;
 export function applyLang() {
   document.documentElement.lang = lang;
   document.documentElement.dir = lang === 'ar' ? 'rtl' : 'ltr';
   document.title = S[lang].app;
 }
-export function setLang(l) { lang = l === 'ar' ? 'ar' : 'de'; localStorage.setItem('ut:lang', lang); applyLang(); }
+export const LANGS = ['de', 'ar', 'en'];
+export function setLang(l) { lang = LANGS.includes(l) ? l : 'de'; localStorage.setItem('ut:lang', lang); applyLang(); }
 export const t = (k, v) => (S[lang][k] ?? S.de[k] ?? k).replace(/\{(\w+)\}/g, (_, n) => v?.[n] ?? '');

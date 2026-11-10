@@ -6,7 +6,7 @@
 const FAST = ['gemini-flash-lite-latest', 'gemini-2.5-flash-lite', 'gemini-2.0-flash', 'gemini-flash-latest'];
 const SMART = ['gemini-2.5-flash', 'gemini-2.5-flash-lite', 'gemini-flash-lite-latest', 'gemini-2.0-flash'];
 const MAX_HTML = 2_500_000, MAX_TEXT = 25_000;
-const RCATS = ['main', 'salad', 'soup', 'breakfast', 'dessert'];
+const RCATS = ['main', 'starter', 'salad', 'soup', 'breakfast', 'dessert'];
 const ICATS = ['obst', 'gemuese', 'kraeuter', 'milch', 'fleisch', 'brot', 'vorrat', 'konserven', 'gewuerze', 'backen', 'fruehstueck', 'snacks', 'getraenke', 'tk', 'orient', 'drogerie', 'haushalt', 'baby', 'sonst'];
 const COLS = new Set(['items', 'recipes', 'plan', 'stores', 'prefs', 'custom', 'meta']);
 
@@ -27,8 +27,8 @@ const ITEMS_SCHEMA = {
   type: 'ARRAY',
   items: {
     type: 'OBJECT',
-    properties: { name: { type: 'STRING' }, de: { type: 'STRING' }, ar: { type: 'STRING' }, cat: { type: 'STRING', enum: ICATS }, emoji: { type: 'STRING' } },
-    required: ['name', 'de', 'ar', 'cat', 'emoji']
+    properties: { name: { type: 'STRING' }, de: { type: 'STRING' }, ar: { type: 'STRING' }, en: { type: 'STRING' }, cat: { type: 'STRING', enum: ICATS }, emoji: { type: 'STRING' } },
+    required: ['name', 'de', 'ar', 'en', 'cat', 'emoji']
   }
 };
 
@@ -79,7 +79,7 @@ export default {
   }
 };
 
-const lang = l => (l === 'de' || l === 'ar') ? l : 'orig';
+const lang = l => ['de', 'ar', 'en'].includes(l) ? l : 'orig';
 
 /* ---------- Rezept aus Link ---------- */
 async function importUrl(q, key, cors) {
@@ -154,6 +154,7 @@ function gemini(key, prompt, schema, models, HEDGE = 2500) {
 const LANG_RULE = {
   de: 'Write EVERYTHING in German (translate title, ingredients and steps if needed). Use these unit abbreviations: g, kg, ml, l, EL, TL, Stk., Bund, Dose, Prise, Zehe, Tasse.',
   ar: 'Write EVERYTHING in Modern Standard Arabic (translate title, ingredients and steps if needed). Use these units: غ، كغ، مل، ل، ملعقة كبيرة، ملعقة صغيرة، كوب، حبة، رشة، فص، حزمة، علبة. Use Western digits (0-9).',
+  en: 'Write EVERYTHING in English (translate title, ingredients and steps if needed). Use these unit abbreviations: g, kg, ml, l, tbsp, tsp, cup, pinch, clove, bunch, tin.',
   orig: 'Keep the original language of the source. Abbreviate common units (e.g. g, kg, ml, l, EL, TL in German).'
 };
 
@@ -162,7 +163,7 @@ async function recipeAI(key, input, lg) {
 - ingredients: one ingredient per entry in the format "<amount> <unit> <ingredient>", e.g. "500 g Nudeln", "2 EL Olivenöl", "1/2 Zitrone", "3 Eier". Amount as a number (decimals or simple fractions, no ranges). If there is no amount, give just the ingredient name. Keep entries short: drop preparation notes such as "finely chopped".
 - steps: numbered steps separated by line breaks ("1. …\\n2. …").
 - time: total time in minutes (0 if unknown). servings: number of persons (0 if unknown).
-- category: main, salad, soup, breakfast or dessert. emoji: one fitting food emoji.
+- category: main, starter, salad, soup, breakfast or dessert. emoji: one fitting food emoji.
 - ${LANG_RULE[lg]}
 - Do not invent anything. Ignore ads, comments and navigation. If there is no recipe, return an empty title.
 
@@ -175,10 +176,11 @@ ${input.slice(0, MAX_TEXT)}`;
 }
 
 async function itemsAI(key, names) {
-  const prompt = `These are entries of a household shopping list (German or Arabic, may contain typos). For each entry return:
+  const prompt = `These are entries of a household shopping list (German, Arabic or English, may contain typos). Products are for a Muslim household. For each entry return:
 - name: the entry exactly as given
 - de: the product name in German (short, as on a shopping list)
 - ar: the product name in Modern Standard Arabic (short)
+- en: the product name in English (short)
 - cat: obst (fruit), gemuese (vegetables), kraeuter (fresh herbs), milch (dairy & eggs), fleisch (meat & fish), brot (bread & bakery), vorrat (pasta, rice, legumes), konserven (cans & sauces), gewuerze (spices & oils), backen (baking), fruehstueck (breakfast, spreads, coffee, tea), snacks (sweets & snacks), getraenke (drinks), tk (frozen), orient (oriental specialities), drogerie (personal care), haushalt (household & cleaning), baby, sonst (other)
 - emoji: one fitting emoji
 Entries:

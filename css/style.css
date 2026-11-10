@@ -435,3 +435,79 @@ body.dragging .toast{opacity:0}
 .cdiv:first-child{border-top:0}
 .cdiv span{font-size:.85rem}
 html:not([lang=ar]) .cdiv{text-transform:uppercase;letter-spacing:.04em}
+
+/* ===== Version 4 ===== */
+.peers{display:inline-flex;align-items:center;gap:3px;font-weight:600}
+.peers .i{width:15px;height:15px;stroke-width:2.2}
+.dot.on{box-shadow:0 0 0 3px rgba(47,179,107,.18);animation:glow 2.6s ease-in-out infinite}
+@keyframes glow{50%{box-shadow:0 0 0 5px rgba(47,179,107,.08)}}
+
+/* Sprachwahl */
+.langs{display:grid;grid-template-columns:repeat(3,1fr);gap:10px}
+.langs button{position:relative;display:flex;flex-direction:column;align-items:center;gap:8px;padding:16px 8px 14px;border-radius:18px;background:var(--surface);border:1.5px solid var(--line);box-shadow:var(--shadow);transition:border-color .15s,transform .1s}
+.langs button:active{transform:scale(.97)}
+.langs .lg{width:46px;height:46px;border-radius:50%;display:grid;place-items:center;font-weight:750;font-size:1.05rem;background:var(--surface2);color:var(--muted)}
+.langs button[lang=ar] .lg{font-family:"Noto Sans Arabic",sans-serif;font-size:1.35rem}
+.langs b{font-weight:600;font-size:.92rem}
+.langs .i{position:absolute;top:8px;inset-inline-end:8px;width:18px;height:18px;padding:3px;border-radius:50%;background:var(--acc);color:var(--acc-ink);stroke-width:3;opacity:0;transform:scale(.5);transition:.2s}
+.langs .on{border-color:var(--acc);background:color-mix(in srgb,var(--acc-soft) 55%,var(--surface))}
+.langs .on .lg{background:var(--acc);color:var(--acc-ink)}
+.langs .on .i{opacity:1;transform:none}
+
+/* Häkchen zeichnen + Zeile ausblenden */
+.chk .ck path{stroke-dasharray:1;stroke-dashoffset:0}
+.it.checking .chk{background:var(--acc);border-color:var(--acc);animation:pop .4s cubic-bezier(.3,1.6,.5,1)}
+.it.checking .chk .i{opacity:1}
+.it.checking .chk .ck path{stroke-dashoffset:1;animation:draw .32s .05s ease-out forwards}
+@keyframes draw{to{stroke-dashoffset:0}}
+.it.checking .nm b{color:var(--muted);text-decoration:line-through;text-decoration-color:color-mix(in srgb,var(--muted) 70%,transparent);transition:color .2s}
+.it.checking{overflow:hidden;transition:height .26s ease,opacity .26s ease}
+.it.leaving{height:0!important;opacity:0}
+.it.leaving .ri{transform:translateX(18px);transition:transform .26s ease}
+[dir=rtl] .it.leaving .ri{transform:translateX(-18px)}
+
+/* Einkauf abschließen & Verlauf */
+.btn.finish{margin-top:12px}
+.hint.small{font-size:.8rem;margin-top:6px}
+.trip{margin:0}
+.trip summary{list-style:none;display:flex;align-items:center;gap:12px;padding:10px 4px;cursor:pointer}
+.trip summary::-webkit-details-marker{display:none}
+.trip summary b{display:block;font-weight:600}.trip summary small{color:var(--muted);font-size:.84rem}
+.trip+.trip{border-top:1px solid var(--line)}
+.trip .card{margin-bottom:10px}
+.hrow{display:flex;align-items:center;gap:12px;width:100%;padding:10px 14px;text-align:start}
+.hrow+.hrow{border-top:1px solid var(--line)}
+.hrow .em{width:36px;height:36px;border-radius:10px;background:var(--surface2);display:grid;place-items:center;font-size:1.2rem;flex:none}
+.hrow .nm{flex:1;min-width:0}.hrow .nm b{display:block;font-weight:550}.hrow .nm small{color:var(--muted);font-size:.82rem}
+.hrow .plus{width:30px;height:30px;border-radius:50%;display:grid;place-items:center;background:var(--acc-soft);color:var(--acc);flex:none;transition:.2s}
+.hrow .plus .i{width:17px;height:17px;stroke-width:2.4}
+.hrow.on .plus{background:var(--acc);color:var(--acc-ink)}
+.oe.sm{width:36px;height:36px;font-size:1.15rem;border-radius:10px}
+
+/* Katalog: Märkte zuordnen */
+.cHead .round.acc{box-shadow:0 4px 14px color-mix(in srgb,var(--acc) 30%,transparent)}
+.assignBar{background:var(--acc-soft);border-radius:18px;padding:10px 12px 2px}
+.assignBar p{margin:0 2px 2px;font-size:.84rem;font-weight:550}
+.assignBar .chips{margin:4px -12px 0;padding:4px 12px 10px}
+.tile .sb{position:absolute;top:6px;inset-inline-start:6px;width:22px;height:22px;border-radius:7px;display:grid;place-items:center;font-size:.75rem;background:color-mix(in srgb,var(--c) 18%,var(--surface));border:1px solid color-mix(in srgb,var(--c) 35%,transparent)}
+.tile.as{background:color-mix(in srgb,var(--acc-soft) 70%,var(--surface))}
+
+/* Rezept: teilen, Aktionen, geteiltes Rezept */
+.glassRow{position:absolute;top:calc(env(safe-area-inset-top) + 14px);inset-inline-end:14px;display:flex;gap:8px}
+.glass2{background:rgba(255,255,255,.88);border:0;backdrop-filter:blur(8px);color:#222}
+.glass2.on{color:#e0443a}.glass2.on .i{fill:currentColor}
+.opt.danger b{color:var(--danger)}
+.shared{display:flex;align-items:center;gap:14px}
+.shared .pic{width:84px;height:84px;border-radius:18px;font-size:2.4rem;flex:none}
+.shared b{display:block;font-size:1.15rem;font-weight:700}.shared small{color:var(--muted)}
+
+/* Installieren */
+.banner.inst .be img{width:40px;height:40px;border-radius:11px;display:block;box-shadow:0 3px 10px rgba(20,60,40,.18)}
+.banner.inst .btn{padding:10px 12px}
+.instHow{display:flex;flex-direction:column;align-items:center;gap:14px;text-align:center;padding:10px 6px}
+.instHow img{width:84px;height:84px;border-radius:22px;box-shadow:0 8px 24px rgba(20,60,40,.2)}
+.instHow p{margin:0;line-height:1.6}
+.col{width:34px;height:34px}
+.emo{width:42px;height:42px}
+@media (min-width:960px){.banner.inst{max-width:760px}}
+@media (min-width:960px){.glassRow{top:16px}}
