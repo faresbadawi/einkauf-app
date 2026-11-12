@@ -275,16 +275,38 @@ const weekLabel = off => {
 /* Wochenplan: drei Hauptgerichte + beliebig viele Extras (Salat, Dessert, Suppe, Frühstück) */
 const COURSES = ['starter', 'salad', 'soup', 'dessert', 'breakfast'];
 const rEmoji = c => RCATS.find(x => x[0] === c)?.[1] || '🍽️';
-const planOf = off => { const p = S.plan.find(p => p.id === weekId(off)); return { id: weekId(off), slots: p?.slots || [null, null, null], extra: p?.extra || [] }; };
+/** Regeln für Vorschläge – im Haushalt geteilt. n = Hauptgerichte pro Woche, gap = Wochen ohne Wiederholung, add = Gänge, die mit vorgeschlagen werden. */
+const planCfg = () => { const m = S.meta.find(m => m.id === 'planCfg') || {}; return { n: Math.min(7, Math.max(1, m.n || 3)), gap: m.gap ?? 4, add: (m.add || []).filter(c => COURSES.includes(c)) }; };
+const setPlanCfg = patch => store.put('meta', { id: 'planCfg', ...planCfg(), ...patch, t: Date.now() });
+const planOf = off => {
+  const p = S.plan.find(p => p.id === weekId(off)), slots = [...(p?.slots || [])];
+  const len = Math.max(planCfg().n, slots.reduce((a, id, i) => id ? i + 1 : a, 0));
+  slots.length = len; for (let i = 0; i < len; i++) slots[i] ??= null;
+  return { id: weekId(off), slots, extra: p?.extra || [] };
+};
+const slotLabel = (i, len) => len === 3 ? t('slot' + i) : t('dishN', { n: i + 1 });
 const savePlan = (off, patch) => store.put('plan', { ...planOf(off), ...patch });
 const shuffle = a => { for (let i = a.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [a[i], a[j]] = [a[j], a[i]]; } return a; };
 function suggest(off) {
-  let mains = S.recipes.filter(r => rcatOf(r) === 'main').map(r => r.id);
-  if (mains.length < 3) mains = mains.concat(S.recipes.filter(r => ['soup', 'salad'].includes(rcatOf(r))).map(r => r.id));
-  if (!mains.length) return toast(t('needRecipes'));
-  const p = planOf(off), ms = shuffle(mains);
-  const extra = p.extra.map(e => { const pool = shuffle(S.recipes.filter(r => rcatOf(r) === e.c && r.id !== e.r).map(r => r.id)); return pool.length ? { ...e, r: pool[0] } : e; });
-  savePlan(off, { slots: [0, 1, 2].map(i => ms[i] || null), extra });
+  const c = planCfg(), recent = new Set();
+  for (let k = 1; k <= c.gap; k++) { const q = planOf(off - k); [...q.slots, ...q.extra.map(e => e.r)].forEach(id => id && recent.add(id)); }
+  // zuerst Rezepte, die in den letzten Wochen nicht dran waren; die anderen nur, wenn es sonst nicht reicht
+  const order = ids => [...shuffle(ids.filter(id => !recent.has(id))), ...shuffle(ids.filter(id => recent.has(id)))];
+  const ofCat = cs => S.recipes.filter(r => cs.includes(rcatOf(r))).map(r => r.id);
+  if (!ofCat(['main', 'soup', 'salad']).length) return toast(t('needRecipes'));
+  // erst die Beilagen wählen, damit z. B. der einzige Salat nicht als Hauptgericht verbraucht wird
+  const used = new Set();
+  let extra = [...planOf(off).extra];
+  for (const k of c.add) if (!extra.some(e => e.c === k) && ofCat([k]).length) extra.push({ id: uid().slice(0, 8), c: k, r: null });
+  extra = extra.map(e => {
+    const pool = order(ofCat([e.c])).filter(id => !used.has(id));
+    const pick = pool.find(id => id !== e.r && !recent.has(id)) ?? pool.find(id => id !== e.r) ?? pool[0];
+    if (!pick) return e;
+    used.add(pick); return { ...e, r: pick };
+  });
+  let mains = order(ofCat(['main']));
+  if (mains.length < c.n) mains = mains.concat(order(ofCat(['soup', 'salad'])).filter(id => !used.has(id)));
+  savePlan(off, { slots: Array.from({ length: c.n }, (_, i) => mains[i] || null), extra });
   toast(t('suggested'));
 }
 function aggregate(p) {
@@ -403,8 +425,8 @@ function vPlan() {
   return `<header class="top"><div><h1>${t('plan')}</h1><p class="sub">${weekLabel(off)}${off === 0 ? ' · ' + t('thisWeek') : ''}</p></div>
     <div class="nav2"><button class="round" id="wPrev" aria-label="‹">${ico('back')}</button><button class="round" id="wNext" aria-label="›">${ico('fwd')}</button></div></header>
   <div class="planCols"><div>
-  <section class="grp"><h3><span class="ge">${rEmoji('main')}</span>${t('mains')}<small>${p.slots.filter(recipe).length}/3</small></h3>
-    <div class="slots">${p.slots.map((id, i) => slotHtml(recipe(id), `${t('c_main')} · ${t('slot' + i)}`, `data-pick="m${i}"`)).join('')}</div></section>
+  <section class="grp"><h3><span class="ge">${rEmoji('main')}</span>${t('mains')}<small>${p.slots.filter(recipe).length}/${p.slots.length}</small></h3>
+    <div class="slots">${p.slots.map((id, i) => slotHtml(recipe(id), `${t('c_main')} · ${slotLabel(i, p.slots.length)}`, `data-pick="m${i}"`)).join('')}</div></section>
   <section class="grp"><h3><span class="ge">✨</span>${t('extras')}<small>${p.extra.length || ''}</small></h3>
     ${p.extra.length ? `<div class="slots">${p.extra.map(e => slotHtml(recipe(e.r), `${rEmoji(e.c)} ${t('c_' + e.c)}`, `data-pick="x${e.id}"`)).join('')}</div>` : `<p class="hint pad2">${t('extrasHint')}</p>`}
     <div class="pickers addC">${COURSES.map(c => `<button class="chip" data-addc="${c}">${ico('plus')}<span>${rEmoji(c)}</span>${t('c_' + c)}</button>`).join('')}</div></section>
@@ -414,21 +436,41 @@ function vPlan() {
     <button class="btn" id="planToList">${ico('bag')}${t('toList')}</button>` : `<p class="hint">${t('planEmpty')}</p>`}</section></div>`;
 }
 
+/* ---------- Design: automatisch / hell / dunkel (pro Gerät) ---------- */
+const themePref = () => localStorage.getItem('ut:theme') || 'auto';
+const mqDark = matchMedia('(prefers-color-scheme:dark)');
+function applyTheme() {
+  const dark = themePref() === 'dark' || (themePref() === 'auto' && mqDark.matches);
+  document.documentElement.dataset.theme = dark ? 'dark' : 'light';
+  document.querySelectorAll('meta[name="theme-color"]').forEach(m => { m.removeAttribute('media'); m.content = dark ? '#121311' : '#f6f5f1'; });
+}
+mqDark.addEventListener('change', applyTheme); applyTheme();
+document.addEventListener('toggle', e => { if (e.target.id === 'hhBox') S.hh = e.target.open; }, true);
+
 /* ---------- Ansicht: Einstellungen ---------- */
 function vMore() {
-  const hasDemo = S.recipes.some(r => r.demo), L = getLang();
+  const hasDemo = S.recipes.some(r => r.demo), L = getLang(), cfg = planCfg();
   const ai = !WORKER ? t('aiOff') : S.ai == null ? t('aiCheck') : S.ai === true ? t('aiOk') : S.ai === false ? t('aiOff') : t('aiErr');
   return `<header class="top"><div><h1>${t('more')}</h1></div></header>
   ${installRow()}
-  <section class="grp"><h3>${t('language')}</h3><div class="langs">${[['de', 'De', 'Deutsch'], ['ar', 'ع', 'العربية'], ['en', 'En', 'English']].map(([k, g, n]) => `<button data-lang="${k}" class="${L === k ? 'on' : ''}" lang="${k}"><span class="lg">${g}</span><b>${n}</b>${ico('check')}</button>`).join('')}</div></section>
-  <section class="grp"><h3>${t('household')}</h3><div class="card pad stack">
+  <section class="grp"><h3>${t('appearance')}</h3><div class="card set">
+    <div class="setRow"><b>${t('language')}</b><div class="seg">${[['de', 'Deutsch'], ['ar', 'العربية'], ['en', 'English']].map(([k, n]) => `<button data-lang="${k}" class="${L === k ? 'on' : ''}" lang="${k}">${n}</button>`).join('')}</div></div>
+    <div class="setRow"><b>${t('theme')}</b><div class="seg">${['auto', 'light', 'dark'].map(k => `<button data-th="${k}" class="${themePref() === k ? 'on' : ''}">${t('th_' + k)}</button>`).join('')}</div></div></div></section>
+  <section class="grp"><h3>${t('planSet')}</h3><div class="card set">
+    <div class="setRow line"><b>${t('planN')}</b><div class="stepper sm"><button data-cfgn="-1" aria-label="−" ${cfg.n <= 1 ? 'disabled' : ''}>${ico('minus')}</button><span>${cfg.n}</span><button data-cfgn="1" aria-label="+" ${cfg.n >= 7 ? 'disabled' : ''}>${ico('plus')}</button></div></div>
+    <div class="setRow"><b>${t('planGap')}</b><div class="seg">${[0, 1, 2, 4].map(g => `<button data-gap="${g}" class="${cfg.gap === g ? 'on' : ''}">${t('gap' + g)}</button>`).join('')}</div></div>
+    <div class="setRow"><b>${t('planAdd')}</b><div class="pickers">${COURSES.map(c => `<button class="chip sm ${cfg.add.includes(c) ? 'on' : ''}" data-padd="${c}"><span>${rEmoji(c)}</span>${t('c_' + c)}</button>`).join('')}</div>
+      <p class="hint small">${t('planSetHint')}</p></div></div></section>
+  <section class="grp"><h3>${t('household')}</h3><details class="card hh" id="hhBox" ${S.hh ? 'open' : ''}>
+    <summary>${ico('user')}<span><b dir="ltr">${fmtCode(code)}</b><small class="sub">${netLine(0, false) || t('localOnly')}</small></span></summary>
+    <div class="stack">
     <p class="hint">${WORKER ? t('householdSub') : t('householdLocal')}</p>
-    <div class="qrWrap"><div class="qr" id="qrBox" aria-label="QR"></div><div class="qrSide"><small>${t('codeLabel')}</small><div class="code" dir="ltr">${fmtCode(code)}</div><p class="sub">${netLine(0, false) || t('localOnly')}</p></div></div>
+    <div class="qrWrap"><div class="qr" id="qrBox" aria-label="QR"></div><div class="qrSide"><small>${t('codeLabel')}</small><div class="code" dir="ltr">${fmtCode(code)}</div></div></div>
     <p class="hint qrHint">${ico('qr')}<span>${t('qrHint')}</span></p>
     <div class="row"><button class="btn" id="mScan">${ico('scan')}${t('scan')}</button><button class="btn ghost" id="mShare">${ico('share')}${t('share')}</button></div>
     <div class="row"><input class="field" id="mJoin" dir="ltr" placeholder="${t('joinPh')}" autocapitalize="characters" autocomplete="off"><button class="btn ghost fit" id="mJoinBtn">${t('join')}</button></div>
-    <button class="linkBtn" id="mNew">${t('newHousehold')}</button></div></section>
-  <section class="grp"><div class="card menu">
+    <button class="linkBtn" id="mNew">${t('newHousehold')}</button></div></details></section>
+  <section class="grp"><h3>${t('moreSet')}</h3><div class="card menu">
     <button id="manageStores">${ico('store')}<span>${t('manageStores')}<small>${t('nStores', { n: S.stores.length })}</small></span>${ico('fwd')}</button>
     <button id="demoBtn">${ico('spark')}<span>${hasDemo ? t('removeDemo') : t('loadDemo')}<small>${t('demoSub')}</small></span></button>
     <button id="aiOpen">${ico('globe')}<span>${t('ai')}<small>${gkey() ? t('ownKeySet') + ' · ' : ''}${ai}</small></span><i class="dot ${S.ai === true ? 'on' : S.ai == null ? '' : 'off'}"></i>${ico('fwd')}</button>
@@ -843,7 +885,7 @@ function pickRecipe(ref) {
   const c = isMain ? 'main' : ex.c, all = [...S.recipes].sort((a, b) => a.title.localeCompare(b.title, getLang()));
   const fit = all.filter(r => rcatOf(r) === c), rest = all.filter(r => rcatOf(r) !== c);
   const opt = r => `<button class="opt" data-r="${r.id}"><span class="${picCls(r)} sm" ${picStyle(r)}>${picIn(r)}</span><span><b dir="auto">${esc(r.title)}</b><small>${rEmoji(rcatOf(r))} ${t('rc_' + rcatOf(r))}${rMeta(r) ? ' · ' + rMeta(r) : ''}</small></span></button>`;
-  show(`${head(`${rEmoji(c)} ${t('c_' + c)}`, isMain ? t('slot' + ref[1]) : '')}
+  show(`${head(`${rEmoji(c)} ${t('c_' + c)}`, isMain ? slotLabel(+ref[1], p.slots.length) : '')}
     ${fit.length ? fit.map(opt).join('') : `<p class="hint">${t('noneOfCourse', { c: t('rc_' + c) })}</p>`}
     ${rest.length ? `<h4 class="subH">${t('otherRecipes')}</h4>${rest.map(opt).join('')}` : ''}
     ${!all.length ? `<p class="hint">${t('needRecipes')}</p>` : ''}
@@ -1021,6 +1063,10 @@ document.addEventListener('click', async e => {
   const pk = el.closest('[data-pick]'); if (pk) return S.recipes.length ? pickRecipe(pk.dataset.pick) : toast(t('needRecipes'));
   const ac2 = el.closest('[data-addc]'); if (ac2) return addCourse(ac2.dataset.addc);
   const lg = el.closest('[data-lang]'); if (lg) { setLang(lg.dataset.lang); relangDemo(); return render(); }
+  const th = el.closest('[data-th]'); if (th) { localStorage.setItem('ut:theme', th.dataset.th); applyTheme(); return render(); }
+  const cn = el.closest('[data-cfgn]'); if (cn) { setPlanCfg({ n: Math.min(7, Math.max(1, planCfg().n + +cn.dataset.cfgn)) }); return render(); }
+  const gp = el.closest('[data-gap]'); if (gp) { setPlanCfg({ gap: +gp.dataset.gap }); return render(); }
+  const pa = el.closest('[data-padd]'); if (pa) { const a = planCfg().add, c = pa.dataset.padd; setPlanCfg({ add: a.includes(c) ? a.filter(x => x !== c) : [...a, c] }); return render(); }
   const id = el.closest('[id]')?.id;
   if (id === 'openCatalog' || id === 'openCatalog2') openCatalog();
   else if (id === 'manageStores') openStores();
