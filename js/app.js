@@ -384,8 +384,9 @@ function vRecipes() {
     <select class="field sortSel" id="rSort" aria-label="${t('sort')}">${['az', 'new', 'fast'].map(k => `<option value="${k}" ${sort === k ? 'selected' : ''}>${t('sort_' + k)}</option>`).join('')}</select></div>
   <div class="chips"><button class="chip ${S.fav ? 'on' : ''}" id="favF" style="--c:#c0392b">${ico('heart')}${t('favs')}</button>
     ${RCATS.map(([c, e]) => (c === 'all' || cnt(c) ? `<button class="chip ${S.rcat === c ? 'on' : ''}" data-rcat="${c}"><span>${e}</span>${t('rc_' + c)}<i>${cnt(c)}</i></button>` : '')).join('')}</div>` : ''}
-  <div class="rgrid">${list.map(r => `<article class="rcard" data-open="${r.id}"><div class="${picCls(r)}" ${picStyle(r)}>${picIn(r)}</div>
+  <div class="rgrid">${list.map(r => `<article class="rcard" data-open="${r.id}"><div class="${picCls(r)}">${esc(r.emoji || '🍽️')}${r.image ? `<img src="${esc(r.image)}" alt="" loading="lazy" decoding="async">` : ''}</div>
     <button class="fav ${r.fav ? 'on' : ''}" data-fav="${r.id}" aria-label="${t('favs')}">${ico('heart')}</button>
+    <button class="fav rmore" data-ract="${r.id}" aria-label="${t('recipeActions')}">${ico('dots')}</button>
     <div class="meta"><b dir="auto">${esc(r.title)}</b><small>${rEmoji(rcatOf(r))} ${[t('rc_' + rcatOf(r)), rMeta(r)].filter(Boolean).join(' · ')}</small></div></article>`).join('')}</div>
   ${!list.length ? (S.recipes.length ? `<div class="empty small"><div class="art">🔎</div><b>${t('nothing')}</b></div>`
     : `<div class="empty"><div class="art">📖</div><b>${t('noRecipes')}</b><p>${t('noRecipesSub')}</p><button class="btn" id="newRecipe2">${ico('plus')}${t('newRecipe')}</button>
@@ -681,10 +682,9 @@ async function openShared(str) {
   };
 }
 
-/* ---------- Rezept lange drücken: Aktionen ---------- */
+/* ---------- Rezept-Aktionen (über den ⋯-Knopf auf der Karte) ---------- */
 function recipeActions(id) {
   const r = recipe(id); if (!r) return;
-  vib(20); haptic();
   show(`${head(esc(r.title), t('recipeActions'))}
     <button class="opt" data-x="share"><span class="oe">📤</span><span><b>${t('shareRecipe')}</b></span></button>
     <button class="opt" data-x="edit"><span class="oe">✏️</span><span><b>${t('edit')}</b></span></button>
@@ -1015,6 +1015,7 @@ document.addEventListener('click', async e => {
     setTimeout(() => { checking--; const cur = S.items.find(i => i.id === it.id); if (cur && !cur.done) store.put('items', { ...cur, done: true }); else schedule(); }, 700);
     return; }
   const fav = el.closest('[data-fav]'); if (fav) { const r = recipe(fav.dataset.fav); if (r) store.put('recipes', { ...r, fav: !r.fav }); return; }
+  const ra = el.closest('[data-ract]'); if (ra) return recipeActions(ra.dataset.ract);
   const op = el.closest('[data-open]'); if (op) return openRecipe(op.dataset.open);
   const rc = el.closest('[data-rcat]'); if (rc) { S.rcat = rc.dataset.rcat; return render(); }
   const pk = el.closest('[data-pick]'); if (pk) return S.recipes.length ? pickRecipe(pk.dataset.pick) : toast(t('needRecipes'));
@@ -1060,7 +1061,7 @@ document.addEventListener('submit', e => {
 });
 document.addEventListener('input', e => {
   if (e.target.id === 'addInput') $('#sugg').innerHTML = suggHtml(e.target.value);
-  if (e.target.id === 'rSearch') { S.q = e.target.value; render(); }
+  if (e.target.id === 'rSearch') { S.q = e.target.value; clearTimeout(S.qT); S.qT = setTimeout(render, 140); }
   if (e.target.id === 'rSort') { localStorage.setItem('ut:rsort', e.target.value); render(); }
 });
 addEventListener('hashchange', () => { if (location.hash.startsWith('#r=')) { const h = location.hash.slice(3); history.replaceState(null, '', location.pathname); return openShared(h); } const c = codeFrom(location.hash); if (c) { history.replaceState(null, '', location.pathname); confirmJoin(c); } });
@@ -1214,10 +1215,7 @@ function endG(cancel) {
 }
 function flushRender() { if (pendingRender && !G?.mode) { pendingRender = false; render(); } }
 
-let RP = null;
 document.addEventListener('pointerdown', e => {
-  const rc = !dlg.open && e.button <= 0 && e.target.closest('#app .rcard[data-open]');
-  if (rc) { RP = { x: e.clientX, y: e.clientY, tm: setTimeout(() => { RP = null; suppressClick = Date.now(); recipeActions(rc.dataset.open); }, 480) }; return; }
   if (dlg.open || e.button > 0 || G) return;
   const row = e.target.closest('#app .it[data-id]');
   if (!row || e.target.closest('.more')) return;
@@ -1225,7 +1223,6 @@ document.addEventListener('pointerdown', e => {
   G.lp = setTimeout(() => { if (G && !G.mode && !row.classList.contains('done')) startDrag(); }, 420);
 });
 addEventListener('pointermove', e => {
-  if (RP && Math.hypot(e.clientX - RP.x, e.clientY - RP.y) > 10) { clearTimeout(RP.tm); RP = null; }
   if (!G) return;
   G.x = e.clientX; G.y = e.clientY;
   const dx = G.x - G.x0, dy = G.y - G.y0;
@@ -1241,9 +1238,10 @@ addEventListener('pointermove', e => {
     if (arm !== G.row.classList.contains('arm')) { G.row.classList.toggle('arm', arm); if (arm) vib(10); }
   } else if (G.mode === 'drag') moveDrag();
 }, { passive: true });
-addEventListener('pointerup', () => { if (RP) { clearTimeout(RP.tm); RP = null; } endG(false); });
+addEventListener('pointerup', () => endG(false));
 addEventListener('pointercancel', () => endG(true));
 document.addEventListener('touchmove', e => { if (G?.mode && e.cancelable) e.preventDefault(); }, { passive: false });
+document.addEventListener('error', e => { if (e.target.matches?.('.rcard img')) e.target.remove(); }, true); // kaputtes Bild → Emoji bleibt sichtbar
 document.addEventListener('contextmenu', e => { if (e.target.closest('#app .it, #app .rcard')) e.preventDefault(); });
 
 (function start() {

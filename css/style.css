@@ -137,7 +137,10 @@ html[lang=ar] .grp h3{letter-spacing:0;text-transform:none;font-size:.9rem}
 .rgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:12px;margin-top:8px}
 .rcard{position:relative;background:var(--surface);border:1px solid var(--line);border-radius:var(--r);overflow:hidden;cursor:pointer;box-shadow:var(--shadow)}
 .pic{display:grid;place-items:center;background-size:cover;background-position:center;font-size:3rem}
-.rcard .pic{aspect-ratio:4/3}
+.rcard .pic{aspect-ratio:4/3;position:relative;overflow:hidden}
+.rcard .pic img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover}
+.rcard{content-visibility:auto;contain-intrinsic-size:auto 210px;-webkit-tap-highlight-color:transparent;-webkit-touch-callout:none;user-select:none}
+.fav.rmore{inset-inline-end:auto;inset-inline-start:8px}.fav.rmore .i{stroke-width:3}
 .rcard .meta{padding:10px 12px 12px}
 .rcard b{display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;font-weight:600;line-height:1.25}
 .rcard small{color:var(--muted);font-size:.8rem}
